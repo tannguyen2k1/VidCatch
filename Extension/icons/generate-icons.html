@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Icon Generator - Video Downloader Pro</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f0f23;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        .preview {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .preview canvas {
+            border-radius: 12px;
+        }
+
+        button {
+            padding: 12px 32px;
+            background: linear-gradient(135deg, #FF6B00, #FF3D00);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        button:hover {
+            box-shadow: 0 4px 16px rgba(255, 61, 0, 0.5);
+        }
+
+        p {
+            color: rgba(255, 255, 255, 0.6);
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🎬 Generate Icons</h1>
+    <div class="preview">
+        <div><canvas id="c16"></canvas>
+            <p>16x16</p>
+        </div>
+        <div><canvas id="c48"></canvas>
+            <p>48x48</p>
+        </div>
+        <div><canvas id="c128"></canvas>
+            <p>128x128</p>
+        </div>
+    </div>
+    <button onclick="downloadAll()">⬇️ Download All Icons</button>
+
+    <script>
+        function drawIcon(canvas, size) {
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+
+            // Background gradient
+            const gradient = ctx.createLinearGradient(0, 0, size, size);
+            gradient.addColorStop(0, '#FF6B00');
+            gradient.addColorStop(1, '#FF3D00');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.roundRect(0, 0, size, size, size * 0.2);
+            ctx.fill();
+
+            // Download arrow — tỉ lệ tinh chỉnh riêng cho từng kích thước
+            const s = size;
+            const isSmall = size <= 16;
+
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = isSmall ? s * 0.16 : s * 0.12;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            // Arrow body
+            const cx = s * 0.5;
+            const arrowTop = isSmall ? s * 0.2 : s * 0.22;
+            const arrowBottom = isSmall ? s * 0.65 : s * 0.72;
+
+            ctx.beginPath();
+            ctx.moveTo(cx, arrowTop);
+            ctx.lineTo(cx, arrowBottom);
+            ctx.stroke();
+
+            // Arrow head
+            const headWidth = isSmall ? s * 0.22 : s * 0.18;
+            const headOffset = isSmall ? s * 0.18 : s * 0.15;
+            const headExtend = isSmall ? s * 0.06 : s * 0.08;
+
+            ctx.beginPath();
+            ctx.moveTo(cx - headWidth, arrowBottom - headOffset);
+            ctx.lineTo(cx, arrowBottom + headExtend);
+            ctx.lineTo(cx + headWidth, arrowBottom - headOffset);
+            ctx.stroke();
+        }
+
+        function downloadCanvas(canvas, filename) {
+            canvas.toBlob(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+        }
+
+        function downloadAll() {
+            downloadCanvas(document.getElementById('c16'), 'icon16.png');
+            downloadCanvas(document.getElementById('c48'), 'icon48.png');
+            setTimeout(() => downloadCanvas(document.getElementById('c128'), 'icon128.png'), 200);
+        }
+
+        drawIcon(document.getElementById('c16'), 16);
+        drawIcon(document.getElementById('c48'), 48);
+        drawIcon(document.getElementById('c128'), 128);
+    </script>
+</body>
+
+</html>

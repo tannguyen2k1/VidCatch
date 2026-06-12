@@ -1,0 +1,34 @@
+{
+  "name": "vidcatch",
+  "version": "1.0.0",
+  "description": "Dễ dàng tải video từ mọi trang web.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tannguyen2k1/VidCatch.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/tannguyen2k1/VidCatch/issues"
+  },
+  "homepage": "https://github.com/tannguyen2k1/VidCatch#readme",
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.0.0-beta.33",
+    "@sveltejs/vite-plugin-svelte": "^7.1.2",
+    "@tailwindcss/postcss": "^4.3.0",
+    "autoprefixer": "^10.5.0",
+    "postcss": "^8.5.15",
+    "svelte": "^5.56.3",
+    "tailwindcss": "^4.3.0",
+    "vite": "^8.0.16",
+    "vite-plugin-static-copy": "^4.1.1"
+  },
+  "dependencies": {}
+}
