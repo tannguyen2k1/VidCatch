@@ -1,4 +1,5 @@
 import os
+from yt_dlp.networking.impersonate import ImpersonateTarget
 
 class Settings:
     PROJECT_NAME: str = "VidDownloadServer"
@@ -12,6 +13,9 @@ class Settings:
         'no_warnings': True,
         'extract_flat': False,
         'skip_download': True,
+        'nocheckcertificate': True,
+        'legacyserverconnect': True,
+        'impersonate': ImpersonateTarget.from_str('chrome-131'),
         # 'cookiefile': 'cookies.txt', # Uncomment if you need authentication
     }
 
