@@ -73,7 +73,7 @@ class YtDlpExtractor:
                 if vcodec != 'none' and acodec != 'none':
                     stream_type = "full"
                 elif vcodec != 'none' and acodec == 'none':
-                    stream_type = "video-only"
+                    stream_type = "auto-merge"
                 elif vcodec == 'none' and acodec != 'none':
                     stream_type = "audio"
                 else:
@@ -110,8 +110,9 @@ class YtDlpExtractor:
                     filesize=f.get('filesize') or f.get('filesize_approx') or 0
                 ))
                 
-            # Filter and sort streams: sort by resolution descending, then audio
-            streams.sort(key=lambda x: (x.resolution, x.streamType == 'audio'), reverse=True)
+            # Filter and sort streams: sort by resolution descending, then streamType (full > auto-merge > audio)
+            type_priority = {'full': 3, 'auto-merge': 2, 'audio': 1}
+            streams.sort(key=lambda x: (x.resolution, type_priority.get(x.streamType, 0)), reverse=True)
 
             return VideoExtractionResponse(
                 title=info.get('title', 'Unknown Title'),

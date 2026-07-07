@@ -4,9 +4,9 @@ from typing import List, Optional, Literal
 class StreamInfo(BaseModel):
     format_id: str
     url: str
-    quality: str
-    streamType: Literal["full", "video-only", "audio"]
-    resolution: float = 0
+    quality: Optional[str] = None
+    streamType: Literal["full", "auto-merge", "video-only", "audio"] = "full"
+    resolution: Optional[int] = None
     ext: str
     filesize: Optional[float] = 0
 
