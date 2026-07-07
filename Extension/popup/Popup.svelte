@@ -1,7 +1,13 @@
 <script>
   import { onMount } from "svelte";
   import Options from "../options/Options.svelte";
-  import { API_BASE_URL } from "../utils/config.js";
+  import { getApiBaseUrl, getApiKey, getAuthHeaders, toWebSocketBaseUrl } from "../utils/config.js";
+  import {
+    getPageFavicon,
+    normalizeExtractionResult,
+    normalizeRawStream,
+    sanitizeDownloadFilename,
+  } from "../utils/video.js";
 
   let videos = [];
   let loading = true;
@@ -10,6 +16,9 @@
   let deepScanning = false;
   let tabUrl = "";
   let tabFavicon = "";
+  let apiBaseUrl = "";
+  let apiKey = "";
+  let backendStatusText = "";
   let videoProgress = {};
   let editingVideoId = null;
   let editingTitle = "";
@@ -30,6 +39,10 @@
     });
 
     try {
+      apiBaseUrl = await getApiBaseUrl();
+      apiKey = await getApiKey();
+      await checkBackendHealth();
+
       const [tab] = await chrome.tabs.query({
         active: true,
         currentWindow: true,
@@ -70,11 +83,11 @@
           }
         });
       } else {
-        statusText = "❌ Please open a valid web page.";
+        statusText = "Please open a valid web page.";
         loading = false;
       }
     } catch (e) {
-      statusText = "❌ Extension Error: " + e.message;
+      statusText = "Extension Error: " + e.message;
       loading = false;
     }
 
@@ -94,11 +107,37 @@
     };
   });
 
-  async function fetchBackend(url) {
-    const res = await fetch(`${API_BASE_URL}/api/extract?url=${encodeURIComponent(url)}&referer=${encodeURIComponent(tabUrl)}`);
+  function buildApiUrl(path, params = {}) {
+    const url = new URL(path, apiBaseUrl);
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        url.searchParams.set(key, value);
+      }
+    });
+    return url.toString();
+  }
+
+  async function checkBackendHealth() {
+    try {
+      const res = await fetch(buildApiUrl("/api/health"), { headers: await getAuthHeaders() });
+      if (!res.ok) throw new Error("Health check failed");
+
+      const data = await res.json();
+      backendStatusText = data.status === "ok" ? "" : "Backend is running with limited capability.";
+    } catch {
+      backendStatusText = "Backend is not reachable. Start VidDownloadServer on the configured URL.";
+    }
+  }
+
+  async function fetchBackend(url, referer = tabUrl) {
+    const res = await fetch(buildApiUrl("/api/extract", { url, referer }), { headers: await getAuthHeaders() });
     if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error?.detail || "Server error");
+      let detail = "Server error";
+      try {
+        const error = await res.json();
+        detail = error?.detail || detail;
+      } catch {}
+      throw new Error(detail);
     }
     return await res.json();
   }
@@ -124,12 +163,15 @@
 
       // Fallback: If page URL scan failed, try intercepted raw media streams
       if ((!data || !data.streams || data.streams.length === 0) && rawStreams.length > 0) {
-        for (const rawUrl of rawStreams) {
+        for (const rawItem of rawStreams) {
+          const rawStream = normalizeRawStream(rawItem);
+          if (!rawStream.url) continue;
+
           try {
-            let fallbackData = await fetchBackend(rawUrl);
+            let fallbackData = await fetchBackend(rawStream.url, rawStream.referer || tabUrl);
             if (fallbackData && fallbackData.streams && fallbackData.streams.length > 0) {
               data = fallbackData;
-              successfulUrl = rawUrl;
+              successfulUrl = rawStream.url;
               errorMsg = ""; // clear error since fallback succeeded
               if (activeTabId) {
                 chrome.runtime.sendMessage({
@@ -150,40 +192,17 @@
         throw new Error(errorMsg || "No videos found");
       }
 
-      const streams = data.streams.map((s, index) => ({
-        url: s.url,
-        title: data.title || "Extracted Video",
-        type: s.streamType === "audio" ? "audio/mp4" : "video/mp4",
-        size: s.filesize || 0,
-        source: "server-extractor",
-        quality: s.quality,
-        streamType: s.streamType,
-        thumbnail: data.thumbnail || "",
-        duration: data.duration || 0,
-        resolution: s.resolution || 0,
-        ext: s.ext,
-        format_id: s.format_id,
-        _sourceUrl: successfulUrl, // The URL that successfully extracted
-        _dedupUrl: `server:${data.title}:${index}`,
-      }));
+      const videoGroup = normalizeExtractionResult(data, successfulUrl);
 
-      if (streams.length > 0) {
-        videos = [{
-          id: `vid_${Date.now()}`,
-          title: data.title || "Extracted Video",
-          thumbnail: data.thumbnail || "",
-          duration: data.duration || 0,
-          streams: streams,
-          selectedStreamIndex: 0,
-          dropdownOpen: false
-        }];
+      if (videoGroup.streams.length > 0) {
+        videos = [videoGroup];
         statusText = "";
       } else {
         videos = [];
       }
     } catch (err) {
       console.error("Deep scan error:", err);
-      statusText = "❌ Deep Scan Error: " + err.message;
+      statusText = backendStatusText || "Deep Scan Error: " + err.message;
     } finally {
       deepScanning = false;
       loading = false;
@@ -192,10 +211,9 @@
 
   function downloadVideo(videoGroup) {
     const video = videoGroup.streams[videoGroup.selectedStreamIndex];
+    const safeTitle = sanitizeDownloadFilename(videoGroup.title);
+
     if (!video.format_id) {
-      const safeTitle = (videoGroup.title || "video")
-        .substring(0, 100)
-        .replace(/[\\/:*?"<>|]/g, "_");
       chrome.downloads.download({
         url: video.url,
         filename: `${safeTitle}.${video.ext}`,
@@ -204,16 +222,15 @@
     }
 
     const vidId = video._dedupUrl || video.url;
+    const jobId = crypto.randomUUID ? crypto.randomUUID() : `job_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     videoProgress = {
       ...videoProgress,
       [vidId]: { state: "downloading", progress: 0, label: "Sending..." },
     };
 
-    let wsBase = API_BASE_URL.replace("http", "ws");
+    let wsBase = toWebSocketBaseUrl(apiBaseUrl);
     const sourceUrl = video._sourceUrl || tabUrl;
-    const wsUrl = `${wsBase}/api/ws/download?url=${encodeURIComponent(sourceUrl)}&format_id=${encodeURIComponent(video.format_id)}&referer=${encodeURIComponent(tabUrl)}`;
-    
-    const safeTitle = (videoGroup.title || "video").substring(0, 100).replace(/[\\/:*?"<>|]/g, "_");
+    const wsUrl = `${wsBase}/api/ws/download?url=${encodeURIComponent(sourceUrl)}&format_id=${encodeURIComponent(video.format_id)}&referer=${encodeURIComponent(tabUrl)}&job_id=${encodeURIComponent(jobId)}&api_key=${encodeURIComponent(apiKey)}`;
     const filename = `${safeTitle}.${video.ext}`;
 
     chrome.runtime.sendMessage({
@@ -221,7 +238,10 @@
       vidId: vidId,
       wsUrl: wsUrl,
       filename: filename,
-      title: videoGroup.title
+      title: videoGroup.title,
+      jobId,
+      apiBaseUrl,
+      apiKey,
     });
   }
 
@@ -246,15 +266,6 @@
     if (bytes < 1024 * 1024 * 1024)
       return (bytes / (1024 * 1024)).toFixed(1) + " MB";
     return (bytes / (1024 * 1024 * 1024)).toFixed(2) + " GB";
-  }
-
-  function getPageFavicon(url) {
-    try {
-      const parsed = new URL(url);
-      return `https://www.google.com/s2/favicons?domain=${parsed.hostname}&sz=128`;
-    } catch {
-      return "";
-    }
   }
 
   function getVideoFormat(video) {
@@ -350,11 +361,11 @@
       </div>
     </header>
 
-    {#if statusText}
+    {#if statusText || backendStatusText}
       <div
         class="px-3 py-2 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 text-[12px] text-gray-700 dark:text-gray-300 leading-snug"
       >
-        {statusText}
+        {statusText || backendStatusText}
       </div>
     {/if}
 

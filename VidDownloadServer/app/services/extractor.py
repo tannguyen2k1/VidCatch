@@ -1,6 +1,44 @@
+import os
+import re
+import tempfile
+
+import imageio_ffmpeg
 import yt_dlp
 from app.models.schemas import VideoExtractionResponse, StreamInfo
 from app.core.config import settings
+
+
+class DownloadCancelled(Exception):
+    pass
+
+
+def sanitize_filename(name: str, fallback: str = "video") -> str:
+    safe_name = re.sub(r'[\\/:*?"<>|\r\n]+', "_", name or fallback).strip(" .")
+    return safe_name[:120] or fallback
+
+
+def resolve_final_file(download_dir: str, prepared_path: str) -> str:
+    if prepared_path and os.path.exists(prepared_path):
+        return prepared_path
+
+    base, _ = os.path.splitext(prepared_path)
+    for ext in (".mp4", ".mkv", ".webm", ".m4a", ".mp3"):
+        candidate = base + ext
+        if os.path.exists(candidate):
+            return candidate
+
+    media_files = []
+    for filename in os.listdir(download_dir):
+        if filename.endswith((".part", ".ytdl", ".temp")):
+            continue
+        path = os.path.join(download_dir, filename)
+        if os.path.isfile(path):
+            media_files.append(path)
+
+    if media_files:
+        return max(media_files, key=os.path.getmtime)
+
+    raise FileNotFoundError("File not found after download")
 
 class YtDlpExtractor:
     @staticmethod
@@ -83,20 +121,26 @@ class YtDlpExtractor:
             )
 
     @staticmethod
-    def download_and_mux(url: str, format_id: str, progress_hook=None, referer: str = None) -> str:
+    def download_and_mux(
+        url: str,
+        format_id: str,
+        progress_hook=None,
+        referer: str = None,
+        job_id: str = None,
+        job_dir: str = None,
+        cancel_event=None,
+    ) -> str:
         """
         Downloads and optionally muxes the requested format (with best audio if needed)
         Returns the absolute path to the downloaded file.
         """
-        import os
-        import tempfile
-        import imageio_ffmpeg
-        
+        if cancel_event and cancel_event.is_set():
+            raise DownloadCancelled("Download cancelled")
+
         ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
-        
-        # Use a consistent temporary directory named 'VidCatch'
-        base_temp = tempfile.gettempdir()
-        download_dir = os.path.join(base_temp, 'VidCatch')
+
+        safe_job_id = sanitize_filename(job_id or "manual")
+        download_dir = job_dir or os.path.join(tempfile.gettempdir(), "VidCatch", "jobs", safe_job_id)
         os.makedirs(download_dir, exist_ok=True)
         
         options = settings.YTDLP_OPTIONS.copy()
@@ -111,7 +155,7 @@ class YtDlpExtractor:
             
         options.update({
             'format': f"{format_id}+bestaudio/{format_id}/best",
-            'outtmpl': os.path.join(download_dir, '%(id)s_%(format_id)s.%(ext)s'),
+            'outtmpl': os.path.join(download_dir, '%(title).120B_%(id)s_%(format_id)s.%(ext)s'),
             'merge_output_format': 'mp4',
             'ffmpeg_location': ffmpeg_path,
             'concurrent_fragment_downloads': 32,
@@ -121,13 +165,20 @@ class YtDlpExtractor:
             'color': 'no_color',
         })
         
-        if progress_hook:
-            options['progress_hooks'] = [progress_hook]
+        def guarded_progress_hook(d):
+            if cancel_event and cancel_event.is_set():
+                raise DownloadCancelled("Download cancelled")
+            if progress_hook:
+                progress_hook(d)
+
+        options['progress_hooks'] = [guarded_progress_hook]
         
         try:
             with yt_dlp.YoutubeDL(options) as ydl:
                 info = ydl.extract_info(url, download=True)
-                # the requested download file path is _filename
-                return ydl.prepare_filename(info)
+                prepared_path = ydl.prepare_filename(info)
+                return resolve_final_file(download_dir, prepared_path)
+        except DownloadCancelled:
+            raise
         except Exception as e:
             raise Exception(f"Download failed: {str(e)}")
