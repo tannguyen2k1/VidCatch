@@ -9,7 +9,10 @@
   let currentView = "main"; // 'main' | 'settings'
   let deepScanning = false;
   let tabUrl = "";
+  let tabFavicon = "";
   let videoProgress = {};
+  let editingVideoId = null;
+  let editingTitle = "";
 
   let activeTabId = null;
 
@@ -33,6 +36,12 @@
       });
       if (tab && tab.url && tab.url.startsWith("http")) {
         tabUrl = tab.url;
+        tabFavicon = tab.favIconUrl || getPageFavicon(tab.url);
+        if (!tabFavicon && tab.url) {
+          try {
+            tabFavicon = new URL("/favicon.ico", tab.url).href;
+          } catch {}
+        }
         activeTabId = tab.id;
         const pollBackground = () => {
           chrome.runtime.sendMessage(
@@ -239,17 +248,63 @@
     return (bytes / (1024 * 1024 * 1024)).toFixed(2) + " GB";
   }
 
-  function getSiteIcon(video) {
-    return "web";
+  function getPageFavicon(url) {
+    try {
+      const parsed = new URL(url);
+      return `https://www.google.com/s2/favicons?domain=${parsed.hostname}&sz=128`;
+    } catch {
+      return "";
+    }
   }
+
   function getVideoFormat(video) {
     return video.ext.toUpperCase();
   }
   function isAudioOnly(video) {
     return video.streamType === "audio";
   }
-  function getDisplayTitle(video) {
-    return video.title;
+
+  function getDisplayTitle(videoGroup) {
+    return videoGroup.title;
+  }
+
+  function startEditTitle(videoGroup) {
+    editingVideoId = videoGroup.id;
+    editingTitle = videoGroup.title || "";
+  }
+
+  function saveEditTitle(videoGroup) {
+    const trimmed = editingTitle.trim();
+    if (trimmed) {
+      videoGroup.title = trimmed;
+      videoGroup.streams = videoGroup.streams.map((s) => ({
+        ...s,
+        title: trimmed,
+      }));
+      videos = [...videos];
+    }
+    editingVideoId = null;
+    editingTitle = "";
+  }
+
+  function cancelEditTitle() {
+    editingVideoId = null;
+    editingTitle = "";
+  }
+
+  function handleEditKeydown(event, videoGroup) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      event.target.blur();
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      cancelEditTitle();
+    }
+  }
+
+  function focusOnMount(node) {
+    node.focus();
+    node.select();
   }
 </script>
 
@@ -399,8 +454,13 @@
                   muted
                   playsinline
                 ></video>
+              {:else if tabFavicon}
+                <img
+                  src={tabFavicon}
+                  alt="Site favicon"
+                  class="w-10 h-10 object-contain opacity-90"
+                />
               {:else}
-                <!-- Giả lập thumbnail nếu không có -->
                 <svg
                   class="w-8 h-8 text-white opacity-20"
                   viewBox="0 0 24 24"
@@ -415,24 +475,12 @@
               <div
                 class="absolute bottom-1 left-1 flex gap-1 items-center bg-black/80 text-white text-[10px] px-1 py-0.5 rounded shadow-sm"
               >
-                {#if getSiteIcon(video) === "facebook"}
-                  <svg
-                    class="w-3.5 h-3.5 text-[#1877F2] bg-white dark:bg-gray-800 rounded-full"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    ><path
-                      d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"
-                    /></svg
-                  >
-                {:else if getSiteIcon(video) === "youtube"}
-                  <svg
-                    class="w-3.5 h-3.5 text-[#FF0000] bg-white dark:bg-gray-800 rounded flex items-center justify-center"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    ><path
-                      d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"
-                    /></svg
-                  >
+                {#if tabFavicon}
+                  <img
+                    src={tabFavicon}
+                    alt=""
+                    class="w-3.5 h-3.5 rounded-full bg-white dark:bg-gray-800 shrink-0"
+                  />
                 {:else}
                   <svg
                     class="w-3.5 h-3.5 text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 rounded-full p-0.5"
@@ -462,15 +510,26 @@
             <!-- Chi tiết Video -->
             <div class="flex-1 min-w-0 flex flex-col justify-between py-0.5">
               <!-- Dòng tiêu đề -->
-              <div class="pr-6 flex items-start gap-1.5 mb-1">
+              <div class="pr-6 flex items-center gap-1.5 mb-1">
                 <span
-                  class="text-[10px] border border-[#3081C4] text-[#3081C4] px-1 py-0.5 rounded font-medium shrink-0 mt-0.5 leading-none bg-blue-50"
+                  class="text-[10px] border border-[#3081C4] text-[#3081C4] px-1 py-0.5 rounded font-medium shrink-0 leading-none bg-blue-50 dark:bg-blue-950"
                   >{getVideoFormat(video)}</span
                 >
-                <span
-                  class="font-medium text-[13px] text-gray-800 dark:text-gray-200 line-clamp-2 leading-tight"
-                  title={videoGroup.title}>{getDisplayTitle(videoGroup)}</span
-                >
+                {#if editingVideoId === videoGroup.id}
+                  <input
+                    type="text"
+                    class="flex-1 min-w-0 text-[13px] font-medium leading-none px-1.5 py-0.5 border border-blue-400 rounded bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    bind:value={editingTitle}
+                    on:keydown={(e) => handleEditKeydown(e, videoGroup)}
+                    on:blur={() => saveEditTitle(videoGroup)}
+                    use:focusOnMount
+                  />
+                {:else}
+                  <span
+                    class="font-medium text-[13px] leading-none text-gray-800 dark:text-gray-200 line-clamp-2"
+                    title={videoGroup.title}>{getDisplayTitle(videoGroup)}</span
+                  >
+                {/if}
               </div>
 
               <!-- Dòng nút chức năng -->
@@ -483,7 +542,8 @@
                     type="button"
                     aria-label="Edit video title"
                     title="Edit video title"
-                    class="p-1 border border-gray-300 dark:border-gray-600 rounded text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 flex items-center justify-center bg-white dark:bg-gray-800 shadow-sm h-[26px] w-[28px] shrink-0"
+                    class="p-1 border border-gray-300 dark:border-gray-600 rounded text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 dark:bg-gray-900 flex items-center justify-center bg-white dark:bg-gray-800 shadow-sm h-[26px] w-[28px] shrink-0 {editingVideoId === videoGroup.id ? 'border-blue-400 text-blue-600' : ''}"
+                    on:click|stopPropagation={() => startEditTitle(videoGroup)}
                   >
                     <svg
                       class="w-3.5 h-3.5"

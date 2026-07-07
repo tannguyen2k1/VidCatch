@@ -19,3 +19,11 @@
 .dark ::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
