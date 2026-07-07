@@ -144,19 +144,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     
     // Only start if not already downloading
     if (!activeDownloads[vidId] || activeDownloads[vidId].state === 'error' || activeDownloads[vidId].state === 'done') {
-      activeDownloads[vidId] = { state: 'downloading', progress: 0, label: 'Sending...' };
+      activeDownloads[vidId] = { state: 'downloading', progress: 0, label: 'Sending...', title: title, filename: filename, speed: '0B/s', eta: 'Unknown' };
       
       const ws = new WebSocket(wsUrl);
+      activeDownloads[vidId].ws = ws;
       ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
         if (data.state === "downloading") {
           const percentRaw = parseFloat(data.progress.replace("%", ""));
           const percent = isNaN(percentRaw) ? 0 : percentRaw;
-          activeDownloads[vidId] = { state: "downloading", progress: percent, label: data.progress };
+          activeDownloads[vidId] = { ...activeDownloads[vidId], state: "downloading", progress: percent, label: data.progress, speed: data.speed || '', eta: data.eta || '' };
         } else if (data.state === "muxing") {
-          activeDownloads[vidId] = { state: "muxing", progress: 100, label: data.label || 'Muxing...' };
+          activeDownloads[vidId] = { ...activeDownloads[vidId], state: "muxing", progress: 100, label: data.label || 'Muxing...', speed: '', eta: '' };
         } else if (data.state === "done") {
-          activeDownloads[vidId] = { state: "done", progress: 100, label: "Done!" };
+          activeDownloads[vidId] = { ...activeDownloads[vidId], state: "done", progress: 100, label: "Done!", speed: '', eta: '' };
           chrome.downloads.download({
             url: data.file_url,
             filename: filename,
@@ -164,24 +165,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
              if (chrome.runtime.lastError) {
                console.error("Download failed:", chrome.runtime.lastError.message);
                activeDownloads[vidId] = { state: "error", progress: 100, label: chrome.runtime.lastError.message };
-             }
+              }
           });
         } else if (data.state === "error") {
-          activeDownloads[vidId] = { state: "error", progress: 100, label: data.error || "Error" };
+          activeDownloads[vidId] = { ...activeDownloads[vidId], state: "error", progress: 100, label: data.error || "Error", speed: '', eta: '' };
         }
         // Broadcast update to Popup if it's open
         chrome.runtime.sendMessage({ action: "DOWNLOAD_PROGRESS", vidId, state: activeDownloads[vidId] }).catch(() => {});
       };
 
       ws.onerror = (error) => {
-        activeDownloads[vidId] = { state: "error", progress: 100, label: "WebSocket Error" };
-        chrome.runtime.sendMessage({ action: "DOWNLOAD_PROGRESS", vidId, state: activeDownloads[vidId] }).catch(() => {});
+        if (activeDownloads[vidId]) {
+           activeDownloads[vidId] = { ...activeDownloads[vidId], state: "error", progress: 100, label: "WebSocket Error", speed: '', eta: '' };
+           chrome.runtime.sendMessage({ action: "DOWNLOAD_PROGRESS", vidId, state: activeDownloads[vidId] }).catch(() => {});
+        }
       };
 
       ws.onclose = () => {
         // If closed prematurely
         if (activeDownloads[vidId] && activeDownloads[vidId].state !== 'done' && activeDownloads[vidId].state !== 'error') {
-           activeDownloads[vidId] = { state: "error", progress: 100, label: "Connection Closed" };
+           activeDownloads[vidId] = { ...activeDownloads[vidId], state: "error", progress: 100, label: "Connection Closed", speed: '', eta: '' };
            chrome.runtime.sendMessage({ action: "DOWNLOAD_PROGRESS", vidId, state: activeDownloads[vidId] }).catch(() => {});
         }
       };
@@ -189,6 +192,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ success: true });
   } else if (message.action === 'CLEAR_DOWNLOAD') {
     delete activeDownloads[message.vidId];
+    sendResponse({ success: true });
+  } else if (message.action === 'STOP_DOWNLOAD') {
+    if (activeDownloads[message.vidId]) {
+      if (activeDownloads[message.vidId].ws) {
+        activeDownloads[message.vidId].ws.close();
+      }
+      activeDownloads[message.vidId] = { ...activeDownloads[message.vidId], state: "error", progress: 100, label: "Cancelled", speed: '', eta: '' };
+      chrome.runtime.sendMessage({ action: "DOWNLOAD_PROGRESS", vidId: message.vidId, state: activeDownloads[message.vidId] }).catch(() => {});
+    }
     sendResponse({ success: true });
   }
   return true; // Keep connection open for async response

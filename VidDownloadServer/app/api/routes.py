@@ -52,20 +52,22 @@ async def websocket_download(websocket: WebSocket, url: str, format_id: str, ref
             s = d.get('_speed_str', '0B/s').strip()
             eta = d.get('_eta_str', 'Unknown').strip()
             try:
-                asyncio.run_coroutine_threadsafe(
+                future = asyncio.run_coroutine_threadsafe(
                     websocket.send_json({"state": "downloading", "progress": p, "speed": s, "eta": eta}),
                     loop
                 )
+                future.result(timeout=2)
             except Exception:
-                pass
+                raise Exception("AbortDownload")
         elif d['status'] == 'finished':
             try:
-                asyncio.run_coroutine_threadsafe(
+                future = asyncio.run_coroutine_threadsafe(
                     websocket.send_json({"state": "muxing", "progress": "100%", "label": "Merging..."}),
                     loop
                 )
+                future.result(timeout=2)
             except Exception:
-                pass
+                raise Exception("AbortDownload")
 
     try:
         # Run blocking yt-dlp logic in a separate thread
@@ -91,7 +93,23 @@ async def websocket_download(websocket: WebSocket, url: str, format_id: str, ref
     except WebSocketDisconnect:
         pass
     except Exception as e:
-        try:
-            await websocket.send_json({"state": "error", "error": str(e)})
-        except:
-            pass
+        if "AbortDownload" in str(e):
+            import glob, os, tempfile
+            temp_dir = os.path.join(tempfile.gettempdir(), 'VidCatch')
+            if os.path.exists(temp_dir):
+                for f in glob.glob(os.path.join(temp_dir, "*.part")):
+                    try: os.remove(f)
+                    except: pass
+                for f in glob.glob(os.path.join(temp_dir, "*.ytdl")):
+                    try: os.remove(f)
+                    except: pass
+            
+            try:
+                await websocket.send_json({"state": "error", "error": "Download Cancelled"})
+            except:
+                pass
+        else:
+            try:
+                await websocket.send_json({"state": "error", "error": str(e)})
+            except:
+                pass

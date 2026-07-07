@@ -16,6 +16,8 @@ class Settings:
         'nocheckcertificate': True,
         'legacyserverconnect': True,
         'impersonate': ImpersonateTarget.from_str('chrome-131'),
+        'noplaylist': True,
+        'socket_timeout': 15,
         # 'cookiefile': 'cookies.txt', # Uncomment if you need authentication
     }
 
