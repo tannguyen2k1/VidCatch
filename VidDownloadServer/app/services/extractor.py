@@ -60,6 +60,7 @@ class YtDlpExtractor:
             streams = []
             
             formats = info.get('formats', [info])
+            seen_formats = set()
             for f in formats:
                 # We only want formats that have a direct URL
                 if not f.get('url'):
@@ -82,12 +83,22 @@ class YtDlpExtractor:
                 ext = f.get('ext') or 'mp4'
                 
                 # Construct quality label
+                note = f.get('format_note', '')
                 if stream_type == "audio":
-                    quality = f.get('format_note', 'Audio')
+                    quality = note if note else 'Audio'
                 else:
                     quality = f"{height}p" if height else "Unknown"
                     if f.get('fps'):
                         quality += f" {f['fps']}fps"
+                    # Append note if it exists and isn't just the resolution
+                    if note and not note.startswith(str(height)):
+                        quality += f" ({note})"
+
+                # Deduplicate based on quality, ext, and stream_type
+                signature = (quality, ext, stream_type)
+                if signature in seen_formats:
+                    continue
+                seen_formats.add(signature)
 
                 streams.append(StreamInfo(
                     format_id=f.get('format_id', ''),
@@ -106,7 +117,10 @@ class YtDlpExtractor:
                 title=info.get('title', 'Unknown Title'),
                 thumbnail=info.get('thumbnail'),
                 duration=info.get('duration') or 0,
-                streams=streams
+                uploader=info.get('uploader') or info.get('creator') or info.get('channel'),
+                view_count=info.get('view_count'),
+                streams=streams,
+                description=info.get('description')
             )
             
         except yt_dlp.utils.DownloadError as e:

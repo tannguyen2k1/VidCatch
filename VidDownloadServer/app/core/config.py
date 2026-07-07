@@ -30,7 +30,7 @@ class Settings:
     # Public deployment security settings
     BACKEND_CORS_ORIGINS: list[str] = [
         origin.strip()
-        for origin in os.getenv("VIDCATCH_CORS_ORIGINS", "http://localhost:5173,http://localhost:8000").split(",")
+        for origin in os.getenv("VIDCATCH_CORS_ORIGINS", "http://localhost:3000,http://localhost:5173,http://localhost:8000").split(",")
         if origin.strip()
     ]
     BACKEND_CORS_ORIGIN_REGEX: str | None = os.getenv("VIDCATCH_CORS_ORIGIN_REGEX", r"chrome-extension://.*")
