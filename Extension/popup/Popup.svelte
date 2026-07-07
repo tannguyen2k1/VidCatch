@@ -453,7 +453,7 @@
                 {#if videoProgress[video._dedupUrl || video.url]}
                   <button
                     class="relative h-[28px] w-[96px] rounded-full overflow-hidden shadow-sm bg-blue-100 text-blue-800 flex items-center justify-center text-[11px] font-semibold transition-opacity disabled:opacity-100 hover:opacity-80 disabled:hover:opacity-100"
-                    disabled={videoProgress[video._dedupUrl || video.url].state === 'downloading' || videoProgress[video._dedupUrl || video.url].state === 'muxing'}
+                    disabled={videoProgress[video._dedupUrl || video.url].state === 'downloading' || videoProgress[video._dedupUrl || video.url].state === 'muxing' || videoProgress[video._dedupUrl || video.url].state === 'saving'}
                     on:click|stopPropagation={() => {
                       const state = videoProgress[video._dedupUrl || video.url].state;
                       if (state === 'done' || state === 'error') {

@@ -158,7 +158,7 @@ class YtDlpExtractor:
             'outtmpl': os.path.join(download_dir, '%(title).120B_%(id)s_%(format_id)s.%(ext)s'),
             'merge_output_format': 'mp4',
             'ffmpeg_location': ffmpeg_path,
-            'concurrent_fragment_downloads': 32,
+            'concurrent_fragment_downloads': settings.YTDLP_CONCURRENT_FRAGMENTS,
             'skip_download': False,
             'quiet': True,
             'no_warnings': True,

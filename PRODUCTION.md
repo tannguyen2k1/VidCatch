@@ -4,7 +4,7 @@ This document covers the public-service deployment mode where the Chrome extensi
 
 ## Required Environment
 
-Set these variables before exposing the backend publicly:
+Copy `VidDownloadServer/.env.example` to `VidDownloadServer/.env`, then set these variables before exposing the backend publicly:
 
 ```bash
 VIDCATCH_PUBLIC_BASE_URL=https://api.example.com
@@ -20,9 +20,16 @@ VIDCATCH_JOB_QUEUE_SIZE=100
 VIDCATCH_JOB_TIMEOUT_SECONDS=1800
 VIDCATCH_MAX_OUTPUT_BYTES=2147483648
 VIDCATCH_STORAGE_MAX_BYTES=21474836480
+VIDCATCH_DOWNLOAD_TOKEN_TTL_SECONDS=1800
+VIDCATCH_DOWNLOAD_STALE_JOB_SECONDS=21600
+VIDCATCH_DOWNLOAD_CLEANUP_INTERVAL_SECONDS=600
+VIDCATCH_YTDLP_CONCURRENT_FRAGMENTS=8
+VIDCATCH_YTDLP_SOCKET_TIMEOUT=15
 ```
 
 Use a reverse proxy with HTTPS in front of FastAPI. Do not expose an unauthenticated `uvicorn --host 0.0.0.0` server.
+
+For a single small VPS, start conservatively with `VIDCATCH_MAX_GLOBAL_ACTIVE_JOBS=4` and `VIDCATCH_YTDLP_CONCURRENT_FRAGMENTS=8`. Increase only after measuring CPU, disk I/O, and network usage.
 
 ## Operational Checks
 
