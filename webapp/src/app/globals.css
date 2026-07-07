@@ -1,20 +1,19 @@
 :root {
-  --primary-color: #6366f1; /* Indigo 500 */
-  --primary-hover: #4f46e5; /* Indigo 600 */
-  --secondary-color: #ec4899; /* Pink 500 */
+  --primary-color: #8b5cf6; /* Violet 500 */
+  --primary-hover: #7c3aed; /* Violet 600 */
+  --secondary-color: #06b6d4; /* Cyan 500 */
   
-  --background-start: #0f172a; /* Slate 900 */
-  --background-end: #1e1b4b; /* Indigo 950 */
+  --background-base: #0f172a;
   
-  --surface: rgba(30, 41, 59, 0.7); /* Slate 800 with opacity */
-  --surface-border: rgba(255, 255, 255, 0.1);
-  --surface-hover: rgba(51, 65, 85, 0.7);
+  --surface: rgba(15, 23, 42, 0.4);
+  --surface-border: rgba(255, 255, 255, 0.15);
+  --surface-hover: rgba(30, 41, 59, 0.6);
   
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
+  --text-main: #ffffff;
+  --text-muted: #cbd5e1;
   
   --success: #10b981;
-  --danger: #ef4444;
+  --danger: #f43f5e;
 }
 
 * {
@@ -32,11 +31,23 @@ body {
 
 body {
   color: var(--text-main);
-  background: linear-gradient(135deg, var(--background-start), var(--background-end));
+  background-color: var(--background-base);
+  background-image: 
+    radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
+    radial-gradient(at 50% 0%, hsla(225,39%,30%,0.5) 0, transparent 50%), 
+    radial-gradient(at 100% 0%, hsla(339,49%,30%,0.5) 0, transparent 50%);
+  background-size: 200% 200%;
+  animation: gradientMove 15s ease infinite;
   background-attachment: fixed;
-  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  font-family: var(--font-outfit), var(--font-inter), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+@keyframes gradientMove {
+  0% { background-position: 0% 0%; }
+  50% { background-position: 100% 100%; }
+  100% { background-position: 0% 0%; }
 }
 
 a {
@@ -47,11 +58,11 @@ a {
 /* Glassmorphism Utilities */
 .glass-panel {
   background: var(--surface);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--surface-border);
-  border-radius: 16px;
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 /* Custom Scrollbar */

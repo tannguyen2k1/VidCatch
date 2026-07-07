@@ -148,7 +148,7 @@ export default function VideoResult({ video, error, originalUrl }: VideoResultPr
 
   const formatViewCount = (views?: number) => {
     if (!views) return '';
-    return new Intl.NumberFormat('en-US').format(views) + ' views';
+    return new Intl.NumberFormat('vi-VN').format(views) + ' lượt xem';
   };
 
   return (
@@ -189,14 +189,14 @@ export default function VideoResult({ video, error, originalUrl }: VideoResultPr
       </div>
 
       <div className={styles.formatsSection}>
-        <h3 className={styles.formatsTitle}>Download Options ({availableFormats.length})</h3>
+        <h3 className={styles.formatsTitle}>Tùy Chọn Tải Về ({availableFormats.length})</h3>
         <div className={styles.formatListWrapper}>
           <div className={styles.formatList}>
             {availableFormats.map((format, idx) => (
               <div key={`${format.format_id}-${idx}`} className={styles.formatItem}>
                 <div className={styles.formatInfo}>
                   <span className={styles.formatQuality}>
-                    {format.quality || (format.resolution ? `${format.resolution}p` : 'Audio')}
+                    {format.quality || (format.resolution ? `${format.resolution}p` : 'Âm thanh')}
                   </span>
                   <span className={styles.formatBadge}>{format.ext.toUpperCase()}</span>
                   {format.streamType && (
@@ -209,7 +209,7 @@ export default function VideoResult({ video, error, originalUrl }: VideoResultPr
                 {downloads[format.format_id] && downloads[format.format_id].status !== 'done' ? (
                   <div className={styles.downloadProgressContainer}>
                     <div className={styles.progressInfo}>
-                      <span className={styles.progressLabel}>{downloads[format.format_id].label || 'Starting...'}</span>
+                      <span className={styles.progressLabel}>{downloads[format.format_id].label || 'Đang bắt đầu...'}</span>
                       <span className={styles.progressStats}>
                         {downloads[format.format_id].progress && `${downloads[format.format_id].progress}`}
                         {downloads[format.format_id].speed && ` • ${downloads[format.format_id].speed}`}
@@ -228,7 +228,7 @@ export default function VideoResult({ video, error, originalUrl }: VideoResultPr
                       className={`btn btn-secondary ${styles.cancelBtn}`}
                       onClick={() => cancelDownload(format.format_id)}
                     >
-                      Cancel
+                      Hủy
                     </button>
                   </div>
                 ) : (
@@ -237,13 +237,13 @@ export default function VideoResult({ video, error, originalUrl }: VideoResultPr
                     onClick={() => startDownload(format)}
                     disabled={!originalUrl}
                   >
-                    Download
+                    Tải Về
                   </button>
                 )}
               </div>
             ))}
             {availableFormats.length === 0 && (
-              <p className={styles.noFormats}>No direct download links available.</p>
+              <p className={styles.noFormats}>Không có link tải trực tiếp nào khả dụng.</p>
             )}
           </div>
         </div>

@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  padding: 4rem 2rem;
+  padding: 2rem;
   max-width: 1200px;
   margin: 0 auto;
   width: 100%;
@@ -13,36 +13,66 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  margin-top: 4rem;
-  margin-bottom: 3rem;
+  margin-top: 2rem;
+  margin-bottom: 2rem;
   animation: slideDown 0.6s ease-out;
 }
 
-.title {
-  font-size: 3.5rem;
-  font-weight: 800;
+.titleWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
   margin-bottom: 1rem;
-  letter-spacing: -0.02em;
+}
+
+.heroLogo {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(6, 182, 212, 0.3);
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+.title {
+  font-size: 4rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  text-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  margin: 0;
 }
 
 .gradientText {
-  background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+  background: linear-gradient(135deg, #a855f7, #3b82f6, #06b6d4);
+  background-size: 200% 200%;
+  animation: shine 4s linear infinite;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   color: transparent;
+  filter: drop-shadow(0 0 15px rgba(139, 92, 246, 0.4));
+}
+
+@keyframes shine {
+  to { background-position: 200% center; }
 }
 
 .subtitle {
-  font-size: 1.25rem;
+  font-size: 1.15rem;
   color: var(--text-muted);
   max-width: 600px;
-  margin-bottom: 3rem;
+  margin-bottom: 2.5rem;
   line-height: 1.6;
+  font-weight: 300;
 }
 
 .resultArea {
-  min-height: 200px;
   display: flex;
   justify-content: center;
 }
@@ -59,13 +89,203 @@
 }
 
 @media (max-width: 768px) {
+  .titleWrapper {
+    gap: 12px;
+  }
+  .heroLogo {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+  }
   .title {
-    font-size: 2.5rem;
+    font-size: 2.8rem;
+  }
+  .subtitle {
+    font-size: 1rem;
+    margin-bottom: 2rem;
   }
   .main {
-    padding: 2rem 1rem;
+    padding: 1.5rem 1rem;
   }
   .hero {
-    margin-top: 2rem;
+    margin-top: 1rem;
   }
+}
+
+/* Donate Modal Styles */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-out;
+  padding: 20px;
+}
+
+.modalContent {
+  background: var(--background-base);
+  border: 1px solid var(--surface-border);
+  border-radius: 24px;
+  padding: 40px;
+  max-width: 500px;
+  width: 100%;
+  position: relative;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.closeBtn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.closeBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-main);
+}
+
+.modalTitle {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, #f59e0b, #ea580c);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.modalDesc {
+  color: var(--text-muted);
+  font-size: 1.05rem;
+  margin-bottom: 32px;
+}
+
+.qrWrapper {
+  background: white;
+  padding: 20px;
+  border-radius: 20px;
+  margin: 0 auto 32px;
+  width: fit-content;
+  box-shadow: 0 8px 32px rgba(245, 158, 11, 0.15);
+}
+
+.qrImage {
+  width: 100%;
+  max-width: 340px;
+  height: auto;
+  aspect-ratio: 1/1;
+  object-fit: contain;
+  display: block;
+}
+
+.bankInfo {
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  border-radius: 16px;
+  padding: 24px;
+  text-align: left;
+}
+
+.bankInfo p {
+  margin: 12px 0;
+  font-size: 1.1rem;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+}
+
+.bankInfo strong {
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.footer {
+  margin-top: auto;
+  padding: 2rem 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.authorInfo {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}
+
+.authorLink {
+  color: var(--primary-color);
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.authorLink:hover {
+  color: var(--secondary-color);
+  text-decoration: underline;
+}
+
+.donateBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+  padding: 10px 24px;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  font-weight: 500;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.donateBtn:hover {
+  background: rgba(245, 158, 11, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.2);
+}
+
+.donateIcon {
+  font-size: 1.2rem;
 }

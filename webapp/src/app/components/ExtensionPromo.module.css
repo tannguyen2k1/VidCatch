@@ -1,7 +1,7 @@
 .container {
   width: 100%;
   max-width: 1000px;
-  margin: 4rem auto 2rem;
+  margin: 2rem auto;
   padding: 1.5rem 2rem;
   display: flex;
   align-items: center;
@@ -54,10 +54,6 @@
 
 @media (max-width: 768px) {
   .container {
-    flex-direction: column;
-    text-align: center;
-  }
-  .content {
-    flex-direction: column;
+    display: none;
   }
 }

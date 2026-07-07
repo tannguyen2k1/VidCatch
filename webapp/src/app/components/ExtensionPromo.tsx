@@ -13,9 +13,9 @@ export default function ExtensionPromo() {
           </svg>
         </div>
         <div className={styles.textWrapper}>
-          <h3 className={styles.title}>Download Faster with VidCatch Extension!</h3>
+          <h3 className={styles.title}>Tải Nhanh Hơn Với Tiện Ích VidCatch!</h3>
           <p className={styles.description}>
-            Get our browser extension to download videos with a single click, right from the video page. No more copy-pasting links.
+            Cài đặt tiện ích mở rộng của chúng tôi để tải video chỉ bằng 1 click ngay trên trang xem video. Không cần copy-paste link nữa.
           </p>
         </div>
       </div>
@@ -24,10 +24,10 @@ export default function ExtensionPromo() {
         className={`btn btn-primary ${styles.installBtn}`}
         onClick={(e) => {
           e.preventDefault();
-          alert('Extension download link will be available soon!');
+          alert('Link cài đặt tiện ích mở rộng sẽ sớm ra mắt!');
         }}
       >
-        Install Extension
+        Cài Đặt Tiện Ích
       </a>
     </div>
   );

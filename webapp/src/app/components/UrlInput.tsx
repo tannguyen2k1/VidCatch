@@ -22,14 +22,14 @@ export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
         <input
           type="url"
           className={styles.input}
-          placeholder="Paste video link here (YouTube, TikTok, etc.)"
+          placeholder="Dán link video vào đây (YouTube, TikTok, v.v.)"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           required
           disabled={isLoading}
         />
-        <button 
-          type="submit" 
+        <button
+          type="submit"
           className={`btn btn-primary ${styles.submitBtn}`}
           disabled={isLoading || !url.trim()}
         >
