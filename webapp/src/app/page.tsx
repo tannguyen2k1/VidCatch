@@ -10,11 +10,13 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [videoData, setVideoData] = useState(null);
   const [error, setError] = useState<string | null>(null);
+  const [currentUrl, setCurrentUrl] = useState<string>('');
 
   const handleExtract = async (url: string) => {
     setIsLoading(true);
     setError(null);
     setVideoData(null);
+    setCurrentUrl(url);
     
     try {
       const response = await fetch(`http://localhost:8000/api/extract?url=${encodeURIComponent(url)}`, {
@@ -56,7 +58,7 @@ export default function Home() {
 
       <div className={styles.resultArea}>
         {(videoData || error) && (
-          <VideoResult video={videoData} error={error} />
+          <VideoResult video={videoData} error={error} originalUrl={currentUrl} />
         )}
       </div>
 
