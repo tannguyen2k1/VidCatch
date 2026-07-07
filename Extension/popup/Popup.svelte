@@ -1,13 +1,12 @@
 <script>
   import { onMount } from "svelte";
   import Options from "../options/Options.svelte";
-  import { getApiBaseUrl, getApiKey, getAuthHeaders, toWebSocketBaseUrl } from "../utils/config.js";
-  import {
-    getPageFavicon,
-    normalizeExtractionResult,
-    normalizeRawStream,
-    sanitizeDownloadFilename,
-  } from "../utils/video.js";
+  import Thumbnail from "./components/Thumbnail.svelte";
+  import { getApiBaseUrl, getApiKey } from "../utils/config.js";
+  import { getPageFavicon } from "../utils/video.js";
+  import { checkBackendHealth as checkBackendHealthRequest, scanVideos } from "./lib/scan.js";
+  import { startVideoDownload } from "./lib/downloads.js";
+  import { clearTitleEdit, saveEditedTitle, startTitleEdit as createTitleEdit } from "./lib/titleEditing.js";
 
   let videos = [];
   let loading = true;
@@ -107,39 +106,8 @@
     };
   });
 
-  function buildApiUrl(path, params = {}) {
-    const url = new URL(path, apiBaseUrl);
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== "") {
-        url.searchParams.set(key, value);
-      }
-    });
-    return url.toString();
-  }
-
   async function checkBackendHealth() {
-    try {
-      const res = await fetch(buildApiUrl("/api/health"), { headers: await getAuthHeaders() });
-      if (!res.ok) throw new Error("Health check failed");
-
-      const data = await res.json();
-      backendStatusText = data.status === "ok" ? "" : "Backend is running with limited capability.";
-    } catch {
-      backendStatusText = "Backend is not reachable. Start VidDownloadServer on the configured URL.";
-    }
-  }
-
-  async function fetchBackend(url, referer = tabUrl) {
-    const res = await fetch(buildApiUrl("/api/extract", { url, referer }), { headers: await getAuthHeaders() });
-    if (!res.ok) {
-      let detail = "Server error";
-      try {
-        const error = await res.json();
-        detail = error?.detail || detail;
-      } catch {}
-      throw new Error(detail);
-    }
-    return await res.json();
+    backendStatusText = await checkBackendHealthRequest(apiBaseUrl);
   }
 
   async function deepScanServer(prefetchedData = null, rawStreams = []) {
@@ -147,62 +115,16 @@
     loading = true;
 
     try {
-      let data = null;
-      let errorMsg = "";
-      let successfulUrl = tabUrl;
-
-      if (prefetchedData && prefetchedData.streams && prefetchedData.streams.length > 0) {
-        data = prefetchedData;
-      } else {
-        try {
-          data = await fetchBackend(tabUrl);
-        } catch (e) {
-          errorMsg = e.message;
-        }
-      }
-
-      // Fallback: If page URL scan failed, try intercepted raw media streams
-      if ((!data || !data.streams || data.streams.length === 0) && rawStreams.length > 0) {
-        for (const rawItem of rawStreams) {
-          const rawStream = normalizeRawStream(rawItem);
-          if (!rawStream.url) continue;
-
-          try {
-            let fallbackData = await fetchBackend(rawStream.url, rawStream.referer || tabUrl);
-            if (fallbackData && fallbackData.streams && fallbackData.streams.length > 0) {
-              data = fallbackData;
-              successfulUrl = rawStream.url;
-              errorMsg = ""; // clear error since fallback succeeded
-              if (activeTabId) {
-                chrome.runtime.sendMessage({
-                  action: "SAVE_CACHE",
-                  tabId: activeTabId,
-                  data: data
-                });
-              }
-              break;
-            }
-          } catch (e) {
-            errorMsg = e.message;
-          }
-        }
-      }
-
-      if (!data || !data.streams || data.streams.length === 0) {
-        throw new Error(errorMsg || "No videos found");
-      }
-
-      const videoGroup = normalizeExtractionResult(data, successfulUrl);
-
-      if (videoGroup.streams.length > 0) {
-        videos = [videoGroup];
-        statusText = "";
-      } else {
-        videos = [];
-      }
-    } catch (err) {
-      console.error("Deep scan error:", err);
-      statusText = backendStatusText || "Deep Scan Error: " + err.message;
+      const result = await scanVideos({
+        apiBaseUrl,
+        tabUrl,
+        activeTabId,
+        prefetchedData,
+        rawStreams,
+        backendStatusText,
+      });
+      videos = result.videos;
+      statusText = result.statusText;
     } finally {
       deepScanning = false;
       loading = false;
@@ -210,39 +132,13 @@
   }
 
   function downloadVideo(videoGroup) {
-    const video = videoGroup.streams[videoGroup.selectedStreamIndex];
-    const safeTitle = sanitizeDownloadFilename(videoGroup.title);
-
-    if (!video.format_id) {
-      chrome.downloads.download({
-        url: video.url,
-        filename: `${safeTitle}.${video.ext}`,
-      });
-      return;
+    const progress = startVideoDownload({ videoGroup, tabUrl, apiBaseUrl, apiKey });
+    if (progress) {
+      videoProgress = {
+        ...videoProgress,
+        [progress.vidId]: progress.state,
+      };
     }
-
-    const vidId = video._dedupUrl || video.url;
-    const jobId = crypto.randomUUID ? crypto.randomUUID() : `job_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    videoProgress = {
-      ...videoProgress,
-      [vidId]: { state: "downloading", progress: 0, label: "Sending..." },
-    };
-
-    let wsBase = toWebSocketBaseUrl(apiBaseUrl);
-    const sourceUrl = video._sourceUrl || tabUrl;
-    const wsUrl = `${wsBase}/api/ws/download?url=${encodeURIComponent(sourceUrl)}&format_id=${encodeURIComponent(video.format_id)}&referer=${encodeURIComponent(tabUrl)}&job_id=${encodeURIComponent(jobId)}&api_key=${encodeURIComponent(apiKey)}`;
-    const filename = `${safeTitle}.${video.ext}`;
-
-    chrome.runtime.sendMessage({
-      action: "START_DOWNLOAD",
-      vidId: vidId,
-      wsUrl: wsUrl,
-      filename: filename,
-      title: videoGroup.title,
-      jobId,
-      apiBaseUrl,
-      apiKey,
-    });
   }
 
   function formatDuration(seconds) {
@@ -280,27 +176,22 @@
   }
 
   function startEditTitle(videoGroup) {
-    editingVideoId = videoGroup.id;
-    editingTitle = videoGroup.title || "";
+    const state = createTitleEdit(videoGroup);
+    editingVideoId = state.editingVideoId;
+    editingTitle = state.editingTitle;
   }
 
   function saveEditTitle(videoGroup) {
-    const trimmed = editingTitle.trim();
-    if (trimmed) {
-      videoGroup.title = trimmed;
-      videoGroup.streams = videoGroup.streams.map((s) => ({
-        ...s,
-        title: trimmed,
-      }));
-      videos = [...videos];
-    }
-    editingVideoId = null;
-    editingTitle = "";
+    const state = saveEditedTitle(videoGroup, editingTitle, videos);
+    videos = state.videos;
+    editingVideoId = state.editingVideoId;
+    editingTitle = state.editingTitle;
   }
 
   function cancelEditTitle() {
-    editingVideoId = null;
-    editingTitle = "";
+    const state = clearTitleEdit();
+    editingVideoId = state.editingVideoId;
+    editingTitle = state.editingTitle;
   }
 
   function handleEditKeydown(event, videoGroup) {
@@ -447,76 +338,7 @@
               >
             </button>
 
-            <!-- Thumbnail -->
-            <div
-              class="w-28 h-16 bg-black rounded shrink-0 relative overflow-hidden flex items-center justify-center"
-            >
-              {#if videoGroup.thumbnail}
-                <img
-                  src={videoGroup.thumbnail}
-                  alt="Thumbnail"
-                  class="w-full h-full object-cover opacity-80"
-                />
-              {:else if video.url && (video.url.includes(".mp4") || video.url.includes(".webm") || video.type?.includes("mp4") || video.type?.includes("webm")) && !video.url.includes(".m3u8") && !video.url.includes(".mpd")}
-                <video
-                  src={video.url}
-                  class="w-full h-full object-cover opacity-80"
-                  preload="metadata"
-                  muted
-                  playsinline
-                ></video>
-              {:else if tabFavicon}
-                <img
-                  src={tabFavicon}
-                  alt="Site favicon"
-                  class="w-10 h-10 object-contain opacity-90"
-                />
-              {:else}
-                <svg
-                  class="w-8 h-8 text-white opacity-20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <polygon points="23 7 16 12 23 17 23 7" />
-                  <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-                </svg>
-              {/if}
-              <div
-                class="absolute bottom-1 left-1 flex gap-1 items-center bg-black/80 text-white text-[10px] px-1 py-0.5 rounded shadow-sm"
-              >
-                {#if tabFavicon}
-                  <img
-                    src={tabFavicon}
-                    alt=""
-                    class="w-3.5 h-3.5 rounded-full bg-white dark:bg-gray-800 shrink-0"
-                  />
-                {:else}
-                  <svg
-                    class="w-3.5 h-3.5 text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 rounded-full p-0.5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    ><circle cx="12" cy="12" r="10" /><line
-                      x1="2"
-                      y1="12"
-                      x2="22"
-                      y2="12"
-                    /><path
-                      d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
-                    /></svg
-                  >
-                {/if}
-
-                {#if videoGroup.duration > 0}
-                  <span class="font-medium ml-0.5"
-                    >{formatDuration(videoGroup.duration)}</span
-                  >
-                {/if}
-              </div>
-            </div>
+            <Thumbnail {videoGroup} {video} {tabFavicon} {formatDuration} />
 
             <!-- Chi tiết Video -->
             <div class="flex-1 min-w-0 flex flex-col justify-between py-0.5">

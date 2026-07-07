@@ -3,14 +3,10 @@ from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.routes import (
-    cleanup_download_storage,
-    periodic_download_cleanup,
-    router as api_router,
-    start_download_workers,
-    stop_download_workers,
-)
+from app.api.routes import router as api_router
 from app.core.config import settings
+from app.services.cleanup import cleanup_download_storage, periodic_download_cleanup
+from app.services.download_jobs import start_download_workers, stop_download_workers
 
 
 @asynccontextmanager

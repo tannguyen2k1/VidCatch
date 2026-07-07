@@ -53,8 +53,8 @@ npm run check
 npm run build
 
 cd ../VidDownloadServer
-python -m unittest discover tests
-python -m py_compile app\api\routes.py app\services\extractor.py app\services\job_store.py app\core\security.py app\main.py
+python -m unittest discover -s tests
+python -m py_compile app\api\routes.py app\api\routers\extract.py app\api\routers\downloads.py app\api\routers\health.py app\services\cleanup.py app\services\download_jobs.py app\services\storage.py app\services\extractor.py app\services\job_store.py app\core\security.py app\main.py
 python -c "from app.main import app; print(app.title)"
 ```
 
