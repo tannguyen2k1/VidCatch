@@ -169,9 +169,8 @@ class YtDlpExtractor:
             }
             
         options.update({
-            'format': f"{format_id}+bestaudio/{format_id}/best",
+            'format': f"{format_id}+bestaudio[ext=m4a]/{format_id}+bestaudio/{format_id}/best",
             'outtmpl': os.path.join(download_dir, '%(title).120B_%(id)s_%(format_id)s.%(ext)s'),
-            'merge_output_format': 'mp4',
             'ffmpeg_location': ffmpeg_path,
             'concurrent_fragment_downloads': settings.YTDLP_CONCURRENT_FRAGMENTS,
             'skip_download': False,
