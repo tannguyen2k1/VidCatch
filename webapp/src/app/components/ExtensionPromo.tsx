@@ -1,5 +1,6 @@
 
 import styles from './ExtensionPromo.module.css';
+import { toast } from 'react-toastify';
 
 export default function ExtensionPromo() {
   return (
@@ -24,7 +25,7 @@ export default function ExtensionPromo() {
         className={`btn btn-primary ${styles.installBtn}`}
         onClick={(e) => {
           e.preventDefault();
-          alert('Link cài đặt tiện ích mở rộng sẽ sớm ra mắt!');
+          toast.info('Tính năng sắp ra mắt!');
         }}
       >
         Cài Đặt Tiện Ích
