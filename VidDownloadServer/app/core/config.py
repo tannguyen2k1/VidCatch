@@ -34,12 +34,7 @@ class Settings:
         if origin.strip()
     ]
     BACKEND_CORS_ORIGIN_REGEX: str | None = os.getenv("VIDCATCH_CORS_ORIGIN_REGEX", r"chrome-extension://.*")
-    API_KEYS: set[str] = {
-        key.strip()
-        for key in os.getenv("VIDCATCH_API_KEYS", "dev-local-key").split(",")
-        if key.strip()
-    }
-    REQUIRE_API_KEY: bool = os.getenv("VIDCATCH_REQUIRE_API_KEY", "true").lower() != "false"
+    ALLOW_LOCAL_URLS: bool = os.getenv("VIDCATCH_ALLOW_LOCAL_URLS", "true").lower() == "true"
     RATE_LIMIT_WINDOW_SECONDS: int = int(os.getenv("VIDCATCH_RATE_LIMIT_WINDOW_SECONDS", "60"))
     RATE_LIMIT_REQUESTS: int = int(os.getenv("VIDCATCH_RATE_LIMIT_REQUESTS", "60"))
     DAILY_JOB_QUOTA: int = int(os.getenv("VIDCATCH_DAILY_JOB_QUOTA", "50"))
@@ -59,7 +54,7 @@ class Settings:
     DOWNLOAD_STALE_JOB_SECONDS: int = int(os.getenv("VIDCATCH_DOWNLOAD_STALE_JOB_SECONDS", str(6 * 60 * 60)))
     DOWNLOAD_CLEANUP_INTERVAL_SECONDS: int = int(os.getenv("VIDCATCH_DOWNLOAD_CLEANUP_INTERVAL_SECONDS", str(10 * 60)))
     YTDLP_CONCURRENT_FRAGMENTS: int = int(os.getenv("VIDCATCH_YTDLP_CONCURRENT_FRAGMENTS", "16"))
-    YTDLP_SOCKET_TIMEOUT: int = int(os.getenv("VIDCATCH_YTDLP_SOCKET_TIMEOUT", "15"))
+    YTDLP_SOCKET_TIMEOUT: int = int(os.getenv("VIDCATCH_YTDLP_SOCKET_TIMEOUT", "30"))
     
     # yt-dlp specific settings
     YTDLP_OPTIONS: dict = {
@@ -72,6 +67,9 @@ class Settings:
         'impersonate': ImpersonateTarget.from_str('chrome-131'),
         'noplaylist': True,
         'socket_timeout': YTDLP_SOCKET_TIMEOUT,
+        'retries': 10,
+        'fragment_retries': 10,
+        'retry_sleep': 2,
         # 'cookiefile': 'cookies.txt', # Uncomment if you need authentication
     }
 

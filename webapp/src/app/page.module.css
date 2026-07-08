@@ -105,7 +105,7 @@
     margin-bottom: 2rem;
   }
   .main {
-    padding: 1.5rem 1rem;
+    padding: 1.5rem 1rem 80px 1rem; /* Thêm padding-bottom để không bị che Footer */
   }
   .hero {
     margin-top: 1rem;

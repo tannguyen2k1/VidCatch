@@ -2,8 +2,7 @@ import asyncio
 import os
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
-from fastapi.background import BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, BackgroundTasks
 from fastapi.responses import FileResponse
 
 from app.core.security import (
@@ -23,14 +22,18 @@ from app.services.download_jobs import (
 )
 from app.services.extractor import sanitize_filename
 from app.services.job_store import job_store
-from app.services.storage import cleanup_path, jobs_root
-
+from app.services.storage import jobs_root, cleanup_path
+from app.services.connection_manager import manager
+from app.models.schemas import JobStartRequest
 
 router = APIRouter()
 
-
 @router.get("/download_file")
-def download_static_file(background_tasks: BackgroundTasks, token: str = Query(...), api_key: str = Depends(authenticate_api_key)):
+def download_static_file(
+    background_tasks: BackgroundTasks,
+    token: str = Query(...), 
+    api_key: str = Depends(authenticate_api_key)
+):
     check_rate_limit(api_key)
     download = completed_downloads.pop(token, None) or job_store.consume_download_token(token)
     if not download:
@@ -40,82 +43,130 @@ def download_static_file(background_tasks: BackgroundTasks, token: str = Query(.
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found")
 
-    background_tasks.add_task(cleanup_path, download["job_dir"])
+    job_dir = download.get("job_dir")
+    if job_dir:
+        background_tasks.add_task(cleanup_path, job_dir)
+
     return FileResponse(
         path=file_path,
         filename=download["filename"],
         media_type="application/octet-stream",
-        background=background_tasks,
     )
-
 
 @router.post("/cancel_download")
 def cancel_download(job_id: str = Query(...), api_key: str = Depends(authenticate_api_key)):
     check_rate_limit(api_key)
     download = active_downloads.get(job_id)
-    if not download:
+    if not download or download["api_key"] != api_key:
         return {"cancelled": False, "detail": "Download is not active"}
 
     download["cancel_event"].set()
+    download["state"] = "error"
+    download["error"] = "download cancel"
     return {"cancelled": True}
 
+@router.get("/jobs/active")
+def get_active_jobs(api_key: str = Depends(authenticate_api_key)):
+    jobs = []
+    for j_id, j_data in list(active_downloads.items()):
+        if j_data["api_key"] == api_key:
+            jobs.append({
+                "job_id": j_id,
+                "state": j_data.get("state", "queued"),
+                "progress": j_data.get("progress", "0%"),
+                "label": j_data.get("label", ""),
+                "title": j_data.get("title", ""),
+                "thumbnail": j_data.get("thumbnail", ""),
+            })
+    return {"jobs": jobs}
 
-@router.websocket("/ws/download")
-async def websocket_download(websocket: WebSocket, url: str, format_id: str, referer: str = None, job_id: str = None):
-    await websocket.accept()
-
-    api_key = await authenticate_websocket(websocket)
-    if not api_key:
-        return
-
+@router.post("/jobs/start")
+async def start_job(request: JobStartRequest, api_key: str = Depends(authenticate_api_key)):
+    check_rate_limit(api_key)
     try:
-        check_rate_limit_for_ws(api_key)
-        validate_public_url_for_ws(url)
-        if referer:
-            validate_public_url_for_ws(referer)
+        validate_public_url_for_ws(request.url)
+        if request.referer:
+            validate_public_url_for_ws(request.referer)
     except ValueError as exc:
-        await websocket.send_json(websocket_error(str(exc)))
-        return
+        raise HTTPException(status_code=400, detail=str(exc))
+        
+    enforce_quota(api_key)
 
-    try:
-        enforce_quota(api_key)
-    except HTTPException as exc:
-        await websocket.send_json(websocket_error(str(exc.detail)))
-        return
-
-    job_id = sanitize_filename(job_id or uuid.uuid4().hex)
+    job_id = sanitize_filename(uuid.uuid4().hex)
     job_dir = os.path.join(jobs_root, job_id)
-    cancel_event = create_active_download(job_id, api_key, job_dir)
-    job_store.create_job(job_id, api_key, url, job_dir)
+    cancel_event = create_active_download(job_id, api_key, job_dir, title=request.title, thumbnail=request.thumbnail)
+    
+    # Lưu thêm url và format_id để frontend mapping
+    if job_id in active_downloads:
+        active_downloads[job_id]["url"] = request.url
+        active_downloads[job_id]["format_id"] = request.format_id
+        
+    job_store.create_job(job_id, api_key, request.url, job_dir)
 
     try:
         await enqueue_download_job({
             "job_id": job_id,
             "api_key": api_key,
-            "url": url,
-            "format_id": format_id,
-            "referer": referer,
+            "url": request.url,
+            "format_id": request.format_id,
+            "referer": request.referer,
             "job_dir": job_dir,
             "cancel_event": cancel_event,
-            "websocket": websocket,
         })
     except asyncio.QueueFull:
         active_downloads.pop(job_id, None)
         job_store.update_job(job_id, "failed", error="Download queue is full")
-        await websocket.send_json(websocket_error("Download queue is full"))
+        raise HTTPException(status_code=503, detail="Download queue is full")
+
+    return {"job_id": job_id, "state": "queued"}
+
+@router.websocket("/ws/sync")
+async def sync_websocket(websocket: WebSocket):
+    await websocket.accept()
+    api_key = await authenticate_websocket(websocket)
+    if not api_key:
+        return
+        
+    try:
+        check_rate_limit_for_ws(api_key)
+    except ValueError as exc:
+        await websocket.close(code=1008, reason=str(exc))
         return
 
-    await websocket.send_json({"state": "queued", "job_id": job_id, "label": "Queued..."})
+    # Call connect directly (we already accepted)
+    if api_key not in manager.active_connections:
+        manager.active_connections[api_key] = 0
+    manager.active_connections[api_key] += 1
+    
+    if api_key in manager.cleanup_tasks:
+        manager.cleanup_tasks[api_key].cancel()
+        del manager.cleanup_tasks[api_key]
     try:
-        while job_id in active_downloads:
+        while True:
+            jobs_to_send = {}
+            for jid, job in list(active_downloads.items()):
+                if job["api_key"] == api_key:
+                    jobs_to_send[jid] = {
+                        "job_id": jid,
+                        "url": job.get("url", ""),
+                        "format_id": job.get("format_id", ""),
+                        "title": job.get("title", ""),
+                        "thumbnail": job.get("thumbnail", ""),
+                        "state": job["state"],
+                        "progress": job["progress"],
+                        "speed": job["speed"],
+                        "eta": job["eta"],
+                        "label": job["label"],
+                        "error": job.get("error"),
+                        "file_url": job.get("done_payload", {}).get("file_url") if job.get("done_payload") else None
+                    }
+                    
+            await websocket.send_json({"type": "sync", "jobs": jobs_to_send})
             await asyncio.sleep(1)
+            
             if websocket.client_state.name == "DISCONNECTED":
-                active_downloads[job_id]["cancel_event"].set()
                 break
     except WebSocketDisconnect:
-        if job_id in active_downloads:
-            active_downloads[job_id]["cancel_event"].set()
+        pass
     finally:
-        if job_id in active_downloads:
-            active_downloads[job_id]["cancel_event"].set()
-            job_store.update_job(job_id, "cancelled", error="WebSocket disconnected")
+        manager.disconnect(websocket, api_key)

@@ -177,6 +177,7 @@ class YtDlpExtractor:
             'quiet': True,
             'no_warnings': True,
             'color': 'no_color',
+            'ratelimit': 3 * 1024 * 1024, # 3MB/s
         })
         
         def guarded_progress_hook(d):

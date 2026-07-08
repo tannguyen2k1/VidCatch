@@ -5,6 +5,8 @@ import styles from "./page.module.css";
 import UrlInput from "./components/UrlInput";
 import VideoResult from "./components/VideoResult";
 import ExtensionPromo from "./components/ExtensionPromo";
+import DownloadManager from "./components/DownloadManager";
+import { API_BASE_URL } from "./config";
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
@@ -21,7 +23,7 @@ export default function Home() {
     setCurrentUrl(url);
 
     try {
-      const response = await fetch(`http://localhost:8000/api/extract?url=${encodeURIComponent(url)}`, {
+      const response = await fetch(`${API_BASE_URL}/api/extract?url=${encodeURIComponent(url)}`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
@@ -95,6 +97,8 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      <DownloadManager />
     </main>
   );
 }

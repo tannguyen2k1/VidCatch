@@ -28,6 +28,8 @@ interface VideoResultProps {
   originalUrl?: string;
 }
 
+import { useDownload } from '../contexts/DownloadContext';
+
 type DownloadState = {
   status: 'queued' | 'downloading' | 'muxing' | 'done' | 'error';
   progress?: string;
@@ -38,8 +40,33 @@ type DownloadState = {
 };
 
 export default function VideoResult({ video, error, originalUrl }: VideoResultProps) {
-  const [downloads, setDownloads] = React.useState<Record<string, DownloadState>>({});
-  const wsRefs = React.useRef<Record<string, WebSocket>>({});
+  const { jobs, addJob, cancelJob } = useDownload();
+
+  const formatJobs = React.useMemo(() => {
+    const mapping: Record<string, any> = {};
+    Object.values(jobs).forEach(job => {
+      if (job.url === originalUrl) {
+        // Lấy job mới nhất cho format này
+        mapping[job.format_id] = job;
+      }
+    });
+    return mapping;
+  }, [jobs, originalUrl]);
+
+  // Chuyển đổi trạng thái từ Context sang dạng UI cũ để không phải sửa quá nhiều HTML
+  const downloads: Record<string, DownloadState> = {};
+  for (const fId in formatJobs) {
+    const j = formatJobs[fId];
+    downloads[fId] = {
+      status: j.state as any,
+      progress: j.progress,
+      speed: j.speed,
+      eta: j.eta,
+      label: j.label,
+      error: j.error,
+    };
+  }
+
   if (error) {
     return (
       <div className={`${styles.container} glass-panel`}>
@@ -59,7 +86,7 @@ export default function VideoResult({ video, error, originalUrl }: VideoResultPr
 
   // Filter out formats without url
   const validFormats = (video.streams || []).filter(f => f.url);
-  
+
   // Deduplicate to ensure no exact matches show up
   const seenSignatures = new Set();
   const availableFormats = [];
@@ -73,71 +100,20 @@ export default function VideoResult({ video, error, originalUrl }: VideoResultPr
   }
 
   const startDownload = (format: StreamInfo) => {
-    const fId = format.format_id;
-    const currentStatus = downloads[fId]?.status;
+    if (!originalUrl) return;
+    const currentStatus = downloads[format.format_id]?.status;
     if (currentStatus === 'queued' || currentStatus === 'downloading' || currentStatus === 'muxing') {
       return; // Already actively downloading
     }
 
-    if (!originalUrl) return;
-
-    setDownloads(prev => ({
-      ...prev,
-      [fId]: { status: 'queued', label: 'Queued...' }
-    }));
-
-    const wsUrl = `ws://localhost:8000/api/ws/download?url=${encodeURIComponent(originalUrl)}&format_id=${encodeURIComponent(fId)}&api_key=dev-local-key`;
-    const ws = new WebSocket(wsUrl);
-    wsRefs.current[fId] = ws;
-
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.state === 'done') {
-        setDownloads(prev => ({
-          ...prev,
-          [fId]: { status: 'done', label: 'Download ready' }
-        }));
-        ws.close();
-        // Trigger file save
-        window.location.href = `http://localhost:8000${data.file_url}&api_key=dev-local-key`;
-      } else if (data.state === 'error') {
-        setDownloads(prev => ({
-          ...prev,
-          [fId]: { status: 'error', error: data.error }
-        }));
-        ws.close();
-      } else {
-        setDownloads(prev => ({
-          ...prev,
-          [fId]: { 
-            status: data.state, 
-            progress: data.progress, 
-            speed: data.speed, 
-            eta: data.eta, 
-            label: data.label 
-          }
-        }));
-      }
-    };
-
-    ws.onerror = () => {
-      setDownloads(prev => ({
-        ...prev,
-        [fId]: { status: 'error', error: 'Connection lost' }
-      }));
-    };
+    addJob(originalUrl, format.format_id, video.title || 'Video', video.thumbnail);
   };
 
   const cancelDownload = (formatId: string) => {
-    if (wsRefs.current[formatId]) {
-      wsRefs.current[formatId].close();
-      delete wsRefs.current[formatId];
+    const currentJob = formatJobs[formatId];
+    if (currentJob) {
+      cancelJob(currentJob.job_id);
     }
-    setDownloads(prev => {
-      const next = { ...prev };
-      delete next[formatId];
-      return next;
-    });
   };
 
   const formatFileSize = (bytes?: number) => {
@@ -159,7 +135,7 @@ export default function VideoResult({ video, error, originalUrl }: VideoResultPr
         </div>
         <div className={styles.videoDetails}>
           <h2 className={styles.title}>{video.title}</h2>
-          
+
           <div className={styles.metaInfo}>
             {video.uploader && (
               <span className={styles.metaItem}>
@@ -209,22 +185,26 @@ export default function VideoResult({ video, error, originalUrl }: VideoResultPr
                 {downloads[format.format_id] && downloads[format.format_id].status !== 'done' ? (
                   <div className={styles.downloadProgressContainer}>
                     <div className={styles.progressInfo}>
-                      <span className={styles.progressLabel}>{downloads[format.format_id].label || 'Đang bắt đầu...'}</span>
+                      <span className={styles.progressLabel}>
+                        {downloads[format.format_id].status === 'queued'
+                          ? 'Bạn đã được đưa vào hàng đợi, vui lòng chờ...'
+                          : (downloads[format.format_id].label || 'Đang kết nối...')}
+                      </span>
                       <span className={styles.progressStats}>
                         {downloads[format.format_id].progress && `${downloads[format.format_id].progress}`}
                         {downloads[format.format_id].speed && ` • ${downloads[format.format_id].speed}`}
                       </span>
                     </div>
                     <div className={styles.progressBarWrapper}>
-                      <div 
-                        className={styles.progressBar} 
+                      <div
+                        className={styles.progressBar}
                         style={{ width: downloads[format.format_id].progress ? downloads[format.format_id].progress : '0%' }}
                       />
                     </div>
                     {downloads[format.format_id].error && (
                       <p className={styles.progressError}>{downloads[format.format_id].error}</p>
                     )}
-                    <button 
+                    <button
                       className={`btn btn-secondary ${styles.cancelBtn}`}
                       onClick={() => cancelDownload(format.format_id)}
                     >

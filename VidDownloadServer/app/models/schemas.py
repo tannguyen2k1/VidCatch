@@ -19,3 +19,10 @@ class VideoExtractionResponse(BaseModel):
     description: Optional[str] = None
     streams: List[StreamInfo] = []
     error: Optional[str] = None
+
+class JobStartRequest(BaseModel):
+    url: str
+    format_id: str
+    title: str = ""
+    thumbnail: str = ""
+    referer: Optional[str] = None

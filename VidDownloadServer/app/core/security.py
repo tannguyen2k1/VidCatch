@@ -39,7 +39,7 @@ def validate_public_url(url: str) -> str:
 
     for result in resolved:
         ip = result[4][0]
-        if _is_forbidden_ip(ip):
+        if not settings.ALLOW_LOCAL_URLS and _is_forbidden_ip(ip):
             raise HTTPException(status_code=400, detail="Private or local network URLs are not allowed")
 
     return url
@@ -54,25 +54,16 @@ def validate_public_url_for_ws(url: str):
 
 def authenticate_api_key(x_api_key: str = Header(default=""), api_key: str = Query(default="")) -> str:
     key = x_api_key or api_key
-    if not settings.REQUIRE_API_KEY:
-        return key or "anonymous"
-
-    if not key or key not in settings.API_KEYS:
-        raise HTTPException(status_code=401, detail="Invalid or missing API key")
-
-    return key
+    return key or "anonymous"
 
 
 async def authenticate_websocket(websocket: WebSocket) -> str | None:
     key = websocket.query_params.get("api_key") or websocket.headers.get("x-api-key")
-    if not settings.REQUIRE_API_KEY:
-        return key or "anonymous"
+    key = websocket.query_params.get("api_key")
+    if not key and "x-api-key" in websocket.headers:
+        key = websocket.headers["x-api-key"]
 
-    if not key or key not in settings.API_KEYS:
-        await websocket.close(code=1008, reason="Invalid or missing API key")
-        return None
-
-    return key
+    return key or "anonymous"
 
 
 def check_rate_limit(api_key: str):

@@ -41,12 +41,21 @@ def websocket_error(message: str) -> dict:
     return {"state": "error", "error": message}
 
 
-def create_active_download(job_id: str, api_key: str, job_dir: str) -> threading.Event:
+def create_active_download(job_id: str, api_key: str, job_dir: str, title: str = "", thumbnail: str = "") -> threading.Event:
     cancel_event = threading.Event()
     active_downloads[job_id] = {
         "cancel_event": cancel_event,
         "job_dir": job_dir,
         "api_key": api_key,
+        "title": title,
+        "thumbnail": thumbnail,
+        "state": "queued",
+        "progress": "0%",
+        "speed": "0B/s",
+        "eta": "Unknown",
+        "label": "Queued...",
+        "error": None,
+        "done_payload": None,
     }
     return cancel_event
 
@@ -57,34 +66,35 @@ async def enqueue_download_job(job: dict):
 
 async def run_download_job(job: dict):
     job_id = job["job_id"]
-    websocket: WebSocket = job["websocket"]
     cancel_event = job["cancel_event"]
     job_dir = job["job_dir"]
-    loop = asyncio.get_running_loop()
+
+    if cancel_event.is_set():
+        return
 
     def progress_hook(d):
         if cancel_event.is_set():
             raise DownloadCancelled("Download Cancelled")
+        if job_id not in active_downloads:
+            return
 
         if d["status"] == "downloading":
-            p = d.get("_percent_str", "0%").strip()
-            s = d.get("_speed_str", "0B/s").strip()
-            eta = d.get("_eta_str", "Unknown").strip()
-            future = asyncio.run_coroutine_threadsafe(
-                websocket.send_json({"state": "downloading", "progress": p, "speed": s, "eta": eta}),
-                loop,
-            )
-            future.result(timeout=2)
+            active_downloads[job_id]["state"] = "downloading"
+            active_downloads[job_id]["label"] = "Downloading..."
+            active_downloads[job_id]["progress"] = d.get("_percent_str", "0%").strip()
+            active_downloads[job_id]["speed"] = d.get("_speed_str", "0B/s").strip()
+            active_downloads[job_id]["eta"] = d.get("_eta_str", "Unknown").strip()
         elif d["status"] == "finished":
             job_store.update_job(job_id, "muxing")
-            future = asyncio.run_coroutine_threadsafe(
-                websocket.send_json({"state": "muxing", "progress": "100%", "label": "Merging..."}),
-                loop,
-            )
-            future.result(timeout=2)
+            active_downloads[job_id]["state"] = "muxing"
+            active_downloads[job_id]["progress"] = "100%"
+            active_downloads[job_id]["label"] = "Merging..."
 
     try:
         job_store.update_job(job_id, "downloading")
+        if job_id in active_downloads:
+            active_downloads[job_id]["state"] = "downloading"
+
         file_path = await asyncio.wait_for(
             run_in_threadpool(
                 YtDlpExtractor.download_and_mux,
@@ -126,30 +136,40 @@ async def run_download_job(job: dict):
             bytes=file_size,
             expires_at=expires_at,
         )
-        await websocket.send_json({
-            "state": "done",
-            "file_url": f"/api/download_file?token={token}",
-            "filename": filename,
-            "expires_at": expires_at,
-        })
+        if job_id in active_downloads:
+            active_downloads[job_id]["state"] = "done"
+            active_downloads[job_id]["done_payload"] = {
+                "state": "done",
+                "file_url": f"/api/download_file?token={token}",
+                "filename": filename,
+                "expires_at": expires_at,
+            }
+            async def cleanup_active():
+                await asyncio.sleep(10)
+                active_downloads.pop(job_id, None)
+            asyncio.create_task(cleanup_active())
     except DownloadCancelled:
         job_store.update_job(job_id, "cancelled", error="Download Cancelled")
         cleanup_path(job_dir)
-        try:
-            await websocket.send_json(websocket_error("Download Cancelled"))
-        except Exception:
-            pass
+        if job_id in active_downloads:
+            active_downloads[job_id]["state"] = "error"
+            active_downloads[job_id]["error"] = "Download Cancelled"
+            async def cleanup_error():
+                await asyncio.sleep(10)
+                active_downloads.pop(job_id, None)
+            asyncio.create_task(cleanup_error())
     except Exception as exc:
         detail = getattr(exc, "detail", str(exc))
         job_store.update_job(job_id, "failed", error=str(detail))
         cleanup_path(job_dir)
         logger.exception("download_job_failed", extra={"job_id": job_id})
-        try:
-            await websocket.send_json(websocket_error(str(detail)))
-        except Exception:
-            pass
-    finally:
-        active_downloads.pop(job_id, None)
+        if job_id in active_downloads:
+            active_downloads[job_id]["state"] = "error"
+            active_downloads[job_id]["error"] = str(detail)
+            async def cleanup_error():
+                await asyncio.sleep(10)
+                active_downloads.pop(job_id, None)
+            asyncio.create_task(cleanup_error())
 
 
 async def download_worker(worker_id: int):
@@ -171,6 +191,11 @@ async def start_download_workers():
 
 
 async def stop_download_workers():
+    # Set cancel_event cho tất cả các tiến trình đang chạy
+    for job_id, job in active_downloads.items():
+        if not job["cancel_event"].is_set():
+            job["cancel_event"].set()
+            
     for task in worker_tasks:
         task.cancel()
     await asyncio.gather(*worker_tasks, return_exceptions=True)

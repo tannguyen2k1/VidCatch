@@ -7,10 +7,16 @@ from app.api.routes import router as api_router
 from app.core.config import settings
 from app.services.cleanup import cleanup_download_storage, periodic_download_cleanup
 from app.services.download_jobs import start_download_workers, stop_download_workers
+from app.db.database import Base, engine
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Đảm bảo models được nạp trước khi tạo bảng
+    import app.db.models
+    # Khởi tạo database
+    Base.metadata.create_all(bind=engine)
+    
     await asyncio.to_thread(cleanup_download_storage, True)
     await start_download_workers()
     cleanup_task = asyncio.create_task(periodic_download_cleanup())
