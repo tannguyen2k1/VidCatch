@@ -194,6 +194,43 @@
   flex-shrink: 0;
 }
 
+/* Nút "Lưu về máy" — hiển thị khi file đã sẵn sàng, khác hẳn nút "Tải Về" */
+.saveBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 700;
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  animation: saveReady 0.35s ease-out;
+}
+
+.saveBtn:hover {
+  filter: brightness(1.05);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
+}
+
+.saveBtn:active {
+  transform: translateY(0);
+  box-shadow: 0 3px 10px rgba(16, 185, 129, 0.4);
+}
+
+.saveBtn svg {
+  flex-shrink: 0;
+}
+
+@keyframes saveReady {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
 .noFormats {
   color: var(--text-muted);
   font-style: italic;

@@ -2,7 +2,7 @@ import asyncio
 import os
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 
 from app.core.security import (
@@ -17,11 +17,10 @@ from app.services.download_jobs import (
     completed_downloads,
     create_active_download,
     enforce_quota,
-    enqueue_download_job,
-    websocket_error,
+    enqueue_download_job
 )
 from app.services.extractor import sanitize_filename
-from app.services.storage import jobs_root, cleanup_path
+from app.services.storage import jobs_root
 from app.services.connection_manager import manager
 from app.models.schemas import JobStartRequest
 
@@ -29,22 +28,19 @@ router = APIRouter()
 
 @router.get("/download_file")
 def download_static_file(
-    background_tasks: BackgroundTasks,
-    token: str = Query(...), 
+    token: str = Query(...),
     api_key: str = Depends(authenticate_api_key)
 ):
     check_rate_limit(api_key)
-    download = completed_downloads.pop(token, None)
+    # Giữ token lại (không pop) để cho phép tải lại nhiều lần trong thời gian TTL.
+    # File sẽ được cleanup định kỳ dọn dẹp khi hết DOWNLOAD_TOKEN_TTL_SECONDS.
+    download = completed_downloads.get(token)
     if not download:
         raise HTTPException(status_code=404, detail="Download token not found or expired")
 
     file_path = download.get("path") or download.get("file_path")
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="File not found")
-
-    job_dir = download.get("job_dir")
-    if job_dir:
-        background_tasks.add_task(cleanup_path, job_dir)
 
     return FileResponse(
         path=file_path,

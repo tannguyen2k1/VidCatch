@@ -19,6 +19,31 @@ export default function Home() {
 
 
 
+  const translateBackendError = (message: string) => {
+    const msg = (message || '').toString();
+
+    if (msg.includes('Only http/https URLs are allowed')) {
+      return 'Chỉ hỗ trợ link bắt đầu bằng http:// hoặc https://';
+    }
+    if (msg.includes('URL host is required')) {
+      return 'Link không hợp lệ: thiếu domain (host).';
+    }
+    if (msg.includes('URL host cannot be resolved')) {
+      return 'Không phân giải được domain của link. Vui lòng kiểm tra lại đường dẫn.';
+    }
+    if (msg.includes('Private or local network URLs are not allowed')) {
+      return 'Không cho phép link nội bộ/mạng riêng.';
+    }
+    if (msg.includes('Rate limit exceeded')) {
+      return 'Bạn gửi yêu cầu quá nhanh. Vui lòng thử lại sau vài giây.';
+    }
+    if (msg.toLowerCase().includes('failed to extract video')) {
+      return 'Không thể trích xuất video từ link này. Hãy thử lại.';
+    }
+
+    return msg;
+  };
+
   const handleExtract = async (url: string) => {
     setIsLoading(true);
     setError(null);
@@ -38,13 +63,14 @@ export default function Home() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || data.error || 'Failed to extract video');
+        throw new Error(translateBackendError(data?.detail || data?.error || 'Failed to extract video'));
       }
 
       setVideoData(data);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'Đã xảy ra lỗi không xác định. Vui lòng đảm bảo backend đang chạy.');
+      const fallback = 'Đã xảy ra lỗi không xác định. Vui lòng đảm bảo backend đang chạy.';
+      setError(translateBackendError(err?.message || fallback));
     } finally {
       setIsLoading(false);
     }

@@ -98,6 +98,11 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
             // Xoá các job cục bộ không còn tồn tại trên server
             for (const jid in next) {
               if (!data.jobs[jid]) {
+                // Giữ lại job đã hoàn tất (done) còn file_url để nút "Lưu về máy"
+                // không bị mất khi server chủ động dọn active_downloads sau khi tải xong.
+                if (next[jid].state === 'done' && next[jid].file_url) {
+                  continue;
+                }
                 // Đánh dấu xoá
                 removedJobs.current.add(jid);
                 delete next[jid];

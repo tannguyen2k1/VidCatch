@@ -23,6 +23,37 @@
   transform: translateY(-2px);
 }
 
+.inputWrapperError {
+  border-color: var(--danger);
+  box-shadow: 0 0 20px rgba(244, 63, 94, 0.35), inset 0 0 10px rgba(244, 63, 94, 0.1);
+}
+
+.inputWrapperError:focus-within {
+  border-color: var(--danger);
+  box-shadow: 0 0 25px rgba(244, 63, 94, 0.45), inset 0 0 10px rgba(244, 63, 94, 0.12);
+}
+
+.errorMessage {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 4px 0;
+  padding: 0 12px;
+  color: var(--danger);
+  font-size: 0.92rem;
+  font-weight: 500;
+  animation: fadeInError 0.25s ease-out;
+}
+
+.errorMessage svg {
+  flex-shrink: 0;
+}
+
+@keyframes fadeInError {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .input {
   flex: 1;
   background: transparent;
