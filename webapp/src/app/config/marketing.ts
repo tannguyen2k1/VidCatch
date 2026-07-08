@@ -1,7 +1,29 @@
 /** Copy dùng chung — cập nhật nền tảng ở đây một chỗ. */
 
+export type PlatformChip = {
+  name: string;
+  icon: string;
+};
+
 export const PLATFORM_SUBTITLE =
-  'Tải video yêu thích từ YouTube, TikTok, Facebook, Bilibili, Douyin, Kuaishou, Youku, Weibo, Taobao, Tmall, JD, Pinduoduo, Xiaohongshu, Shopee, Lazada và nhiều nền tảng khác. Miễn phí, nhanh chóng và an toàn.';
+  'Tải video chất lượng cao từ hàng trăm nền tảng. Miễn phí, nhanh chóng và an toàn.';
+
+/** Nền tảng nổi bật hiển thị dạng chip dưới subtitle. Icon nằm trong /public/platforms/. */
+export const PLATFORM_CHIPS: PlatformChip[] = [
+  { name: 'YouTube', icon: '/platforms/youtube.png' },
+  { name: 'TikTok/Douyin', icon: '/platforms/tiktok.png' },
+  { name: 'Facebook', icon: '/platforms/facebook.png' },
+  { name: 'Instagram', icon: '/platforms/instagram.png' },
+  { name: 'Bilibili', icon: '/platforms/bilibili.png' },
+  { name: 'Kuaishou', icon: '/platforms/kuaishou.png' },
+  { name: 'Youku', icon: '/platforms/youku.png' },
+  { name: 'Weibo', icon: '/platforms/weibo.png' },
+  { name: 'Taobao/Tmall', icon: '/platforms/taobao.png' },
+  { name: 'JD', icon: '/platforms/jd.png' },
+  { name: 'Xiaohongshu', icon: '/platforms/xiaohongshu.ico' },
+  { name: 'Shopee', icon: '/platforms/shopee.png' },
+  { name: 'Lazada', icon: '/platforms/lazada.png' },
+];
 
 export const PLATFORM_PLACEHOLDER =
   'Dán link video (YouTube, TikTok, Taobao, Bilibili, Shopee, v.v.)';

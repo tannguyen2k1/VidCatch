@@ -8,7 +8,7 @@ import ExtensionPromo from "./components/ExtensionPromo";
 
 import { getSessionId } from "./contexts/DownloadContext";
 import { API_BASE_URL } from "./config";
-import { PLATFORM_SUBTITLE } from "./config/marketing";
+import { PLATFORM_CHIPS } from "./config/marketing";
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
@@ -87,8 +87,38 @@ export default function Home() {
           </h1>
         </div>
         <p className={styles.subtitle}>
-          {PLATFORM_SUBTITLE}
+          Tải Video Chất Lượng Cao Từ Hàng Trăm Nền Tảng
         </p>
+        <div className={styles.perks}>
+          {[
+            { label: "Miễn phí", className: styles.perkFree },
+            { label: "Nhanh chóng", className: styles.perkFast },
+            { label: "An toàn", className: styles.perkSafe },
+          ].map((perk) => (
+            <span key={perk.label} className={`${styles.perk} ${perk.className}`}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              {perk.label}
+            </span>
+          ))}
+        </div>
+        <div className={styles.platformChips}>
+          {PLATFORM_CHIPS.map((platform) => (
+            <span key={platform.name} className={styles.platformChip}>
+              <img
+                src={platform.icon}
+                alt=""
+                className={styles.platformChipIcon}
+                width={16}
+                height={16}
+                loading="lazy"
+                decoding="async"
+              />
+              {platform.name}
+            </span>
+          ))}
+        </div>
         <UrlInput onSubmit={handleExtract} isLoading={isLoading} />
       </div>
 
