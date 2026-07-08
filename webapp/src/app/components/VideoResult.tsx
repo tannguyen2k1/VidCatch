@@ -45,6 +45,12 @@ type DownloadState = {
 
 export default function VideoResult({ video, error, originalUrl }: VideoResultProps) {
   const { jobs, addJob, cancelJob } = useDownload();
+  const [imageError, setImageError] = React.useState(false);
+
+  // Reset lỗi ảnh mỗi khi video mới được tải
+  React.useEffect(() => {
+    setImageError(false);
+  }, [video?.thumbnail]);
 
   const formatJobs = React.useMemo(() => {
     const mapping: Record<string, any> = {};
@@ -172,10 +178,40 @@ export default function VideoResult({ video, error, originalUrl }: VideoResultPr
           className={styles.thumbnailWrapper}
           title={originalUrl}
         >
-          {video.thumbnail && <img src={video.thumbnail} alt={video.title} className={styles.thumbnail} />}
+          {video.thumbnail && !imageError ? (
+            <>
+              <img 
+                src={`/api/proxy?url=${encodeURIComponent(video.thumbnail)}`} 
+                alt="blur-bg" 
+                className={styles.thumbnailBlurBg}
+                referrerPolicy="no-referrer"
+                aria-hidden="true"
+              />
+              <img 
+                src={`/api/proxy?url=${encodeURIComponent(video.thumbnail)}`} 
+                alt={video.title} 
+                className={styles.thumbnail}
+                referrerPolicy="no-referrer"
+                onError={() => setImageError(true)}
+              />
+            </>
+          ) : (
+            <div className={`${styles.thumbnail} ${styles.thumbnailFallback}`}>
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.3">
+                <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+                <line x1="7" y1="2" x2="7" y2="22"></line>
+                <line x1="17" y1="2" x2="17" y2="22"></line>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+                <line x1="2" y1="7" x2="7" y2="7"></line>
+                <line x1="2" y1="17" x2="7" y2="17"></line>
+                <line x1="17" y1="17" x2="22" y2="17"></line>
+                <line x1="17" y1="7" x2="22" y2="7"></line>
+              </svg>
+            </div>
+          )}
           {sourceInfo && (
             <div className={styles.sourceBadge} title={sourceInfo.host}>
-              <img src={sourceInfo.favicon} alt={sourceInfo.host} className={styles.sourceLogo} />
+              <img src={`/api/proxy?url=${encodeURIComponent(sourceInfo.favicon)}`} alt={sourceInfo.host} className={styles.sourceLogo} referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
             </div>
           )}
         </a>

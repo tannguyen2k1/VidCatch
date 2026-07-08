@@ -11,10 +11,7 @@ COPY . .
 
 # Set up environment variables at build-time. Next.js bakes 
 # NEXT_PUBLIC_ variables into the compiled client-side JavaScript.
-ARG NEXT_PUBLIC_API_URL
-ARG NEXT_PUBLIC_WS_URL
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
+
 
 # Build the Next.js application
 RUN npm run build

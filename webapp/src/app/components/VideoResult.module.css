@@ -25,20 +25,50 @@
   position: relative;
   display: block;
   flex-shrink: 0;
-  width: 220px;
+  width: 240px;
+  aspect-ratio: 4/5;
+  background-color: rgba(255, 255, 255, 0.05);
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 20px rgba(0,0,0,0.3);
   cursor: pointer;
+  animation: skeletonPulse 1.5s infinite ease-in-out;
+}
+
+@keyframes skeletonPulse {
+  0% { background-color: rgba(255, 255, 255, 0.03); }
+  50% { background-color: rgba(255, 255, 255, 0.08); }
+  100% { background-color: rgba(255, 255, 255, 0.03); }
+}
+
+.thumbnailBlurBg {
+  position: absolute;
+  top: -10%;
+  left: -10%;
+  width: 120%;
+  height: 120%;
+  object-fit: cover;
+  filter: blur(20px);
+  opacity: 0.5;
+  z-index: 0;
 }
 
 .thumbnail {
+  position: relative;
+  z-index: 1;
   width: 100%;
-  height: auto;
-  max-height: 280px;
-  object-fit: cover;
+  height: 100%;
+  object-fit: contain;
   display: block;
   transition: transform 0.3s ease;
+}
+
+.thumbnailFallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: rgba(255, 255, 255, 0.4);
 }
 
 .thumbnailWrapper:hover .thumbnail {
@@ -96,7 +126,8 @@
   line-height: 1.5;
   white-space: pre-line;
   display: -webkit-box;
-  -webkit-line-clamp: 4;
+  -webkit-line-clamp: 8;
+  line-clamp: 8;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

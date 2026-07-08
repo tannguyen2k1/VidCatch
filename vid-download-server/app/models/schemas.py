@@ -20,7 +20,7 @@ class StreamInfo(BaseModel):
 class VideoExtractionResponse(BaseModel):
     title: str
     thumbnail: Optional[str] = None
-    duration: Optional[int] = 0
+    duration: Optional[float] = 0
     uploader: Optional[str] = None
     view_count: Optional[int] = None
     description: Optional[str] = None

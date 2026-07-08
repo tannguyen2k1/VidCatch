@@ -12,7 +12,7 @@ services:
       # to persist the SQLite database and job states across container restarts.
       - vidcatch_data:/tmp/VidCatch
     env_file:
-      - .env.production
+      - ./vid-download-server/.env.production
     environment:
       # Sensible defaults if not defined in .env.production
       - VIDCATCH_PUBLIC_BASE_URL=${VIDCATCH_PUBLIC_BASE_URL:-http://localhost:8000}
