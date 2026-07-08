@@ -147,12 +147,38 @@ export default function VideoResult({ video, error, originalUrl }: VideoResultPr
     return new Intl.NumberFormat('vi-VN').format(views) + ' lượt xem';
   };
 
+  const getSourceInfo = (url?: string) => {
+    if (!url) return null;
+    try {
+      const host = new URL(url).hostname.replace(/^www\./, '');
+      return {
+        host,
+        favicon: `https://www.google.com/s2/favicons?domain=${host}&sz=64`,
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  const sourceInfo = getSourceInfo(originalUrl);
+
   return (
     <div className={`${styles.container} glass-panel`}>
       <div className={styles.videoHeader}>
-        <div className={styles.thumbnailWrapper}>
+        <a
+          href={originalUrl || '#'}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={styles.thumbnailWrapper}
+          title={originalUrl}
+        >
           {video.thumbnail && <img src={video.thumbnail} alt={video.title} className={styles.thumbnail} />}
-        </div>
+          {sourceInfo && (
+            <div className={styles.sourceBadge} title={sourceInfo.host}>
+              <img src={sourceInfo.favicon} alt={sourceInfo.host} className={styles.sourceLogo} />
+            </div>
+          )}
+        </a>
         <div className={styles.videoDetails}>
           <h2 className={styles.title}>{video.title}</h2>
 

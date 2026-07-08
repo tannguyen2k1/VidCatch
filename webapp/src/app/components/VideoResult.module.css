@@ -22,11 +22,14 @@
 }
 
 .thumbnailWrapper {
+  position: relative;
+  display: block;
   flex-shrink: 0;
   width: 220px;
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  cursor: pointer;
 }
 
 .thumbnail {
@@ -46,6 +49,23 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
+}
+
+.sourceBadge {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sourceLogo {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
 }
 
 .title {
