@@ -30,6 +30,7 @@ interface VideoResultProps {
 
 import { useDownload, getSessionId } from '../contexts/DownloadContext';
 import { API_BASE_URL } from '../config';
+import { toast } from 'react-toastify';
 
 type DownloadState = {
   status: 'queued' | 'downloading' | 'muxing' | 'done' | 'error';
@@ -55,6 +56,20 @@ export default function VideoResult({ video, error, originalUrl }: VideoResultPr
     });
     return mapping;
   }, [jobs, originalUrl]);
+
+  const prevStatusRef = React.useRef<Record<string, string>>({});
+  React.useEffect(() => {
+    Object.values(formatJobs).forEach((job: any) => {
+      const currentStatus = job.state || 'queued';
+      const prevStatus = prevStatusRef.current[job.format_id];
+      
+      // Chỉ hiện toast khi mới vào queue và có vị trí rõ ràng
+      if (currentStatus === 'queued' && job.queue_position >= 1 && prevStatus !== 'queued') {
+        toast.info(`Server đang xử lý nhiều tiến trình. Video của bạn đang ở hàng đợi (Vị trí: ${job.queue_position})`);
+      }
+      prevStatusRef.current[job.format_id] = currentStatus;
+    });
+  }, [formatJobs]);
 
   // Chuyển đổi trạng thái từ Context sang dạng UI cũ để không phải sửa quá nhiều HTML
   const downloads: Record<string, DownloadState> = {};

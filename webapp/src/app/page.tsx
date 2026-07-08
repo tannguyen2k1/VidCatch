@@ -60,7 +60,7 @@ export default function Home() {
           </h1>
         </div>
         <p className={styles.subtitle}>
-          Tải video yêu thích từ YouTube, TikTok, Facebook và nhiều nền tảng khác. 
+          Tải video yêu thích từ YouTube, TikTok, Facebook và nhiều nền tảng khác.
           Miễn phí, nhanh chóng và an toàn.
         </p>
         <UrlInput onSubmit={handleExtract} isLoading={isLoading} />
@@ -79,7 +79,7 @@ export default function Home() {
         </div>
         <button onClick={() => setShowDonate(true)} className={styles.donateBtn} title="Donate">
           <span className={styles.donateIcon}>☕</span>
-          <span>Ủng hộ tôi cốc cà phê</span>
+          <span>Mua cho tôi cốc cà phê</span>
         </button>
       </footer>
 
