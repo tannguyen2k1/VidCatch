@@ -1,4 +1,4 @@
-import React from 'react';
+
 import styles from './ExtensionPromo.module.css';
 
 export default function ExtensionPromo() {
@@ -13,14 +13,14 @@ export default function ExtensionPromo() {
           </svg>
         </div>
         <div className={styles.textWrapper}>
-          <h3 className={styles.title}>Tải Nhanh Hơn Với Tiện Ích VidCatch!</h3>
+          <h3 className={styles.title}>Tải nhanh hơn với tiện ích VidCatch!</h3>
           <p className={styles.description}>
             Cài đặt tiện ích mở rộng của chúng tôi để tải video chỉ bằng 1 click ngay trên trang xem video. Không cần copy-paste link nữa.
           </p>
         </div>
       </div>
-      <a 
-        href="#" 
+      <a
+        href="#"
         className={`btn btn-primary ${styles.installBtn}`}
         onClick={(e) => {
           e.preventDefault();

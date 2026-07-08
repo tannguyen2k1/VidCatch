@@ -6,5 +6,3 @@ yt-dlp==2026.7.4
 pydantic==2.11.10
 curl_cffi==0.15.0
 python-dotenv==1.2.2
-sqlalchemy==2.0.36
-alembic==1.14.0

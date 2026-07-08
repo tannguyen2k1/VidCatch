@@ -28,7 +28,8 @@ interface VideoResultProps {
   originalUrl?: string;
 }
 
-import { useDownload } from '../contexts/DownloadContext';
+import { useDownload, getSessionId } from '../contexts/DownloadContext';
+import { API_BASE_URL } from '../config';
 
 type DownloadState = {
   status: 'queued' | 'downloading' | 'muxing' | 'done' | 'error';
@@ -37,6 +38,8 @@ type DownloadState = {
   eta?: string;
   label?: string;
   error?: string;
+  file_url?: string;
+  queue_position?: number;
 };
 
 export default function VideoResult({ video, error, originalUrl }: VideoResultProps) {
@@ -64,6 +67,8 @@ export default function VideoResult({ video, error, originalUrl }: VideoResultPr
       eta: j.eta,
       label: j.label,
       error: j.error,
+      file_url: j.file_url,
+      queue_position: j.queue_position,
     };
   }
 
@@ -182,35 +187,46 @@ export default function VideoResult({ video, error, originalUrl }: VideoResultPr
                   )}
                   <span className={styles.formatSize}>{formatFileSize(format.filesize)}</span>
                 </div>
-                {downloads[format.format_id] && downloads[format.format_id].status !== 'done' ? (
-                  <div className={styles.downloadProgressContainer}>
-                    <div className={styles.progressInfo}>
-                      <span className={styles.progressLabel}>
-                        {downloads[format.format_id].status === 'queued'
-                          ? 'Bạn đã được đưa vào hàng đợi, vui lòng chờ...'
-                          : (downloads[format.format_id].label || 'Đang kết nối...')}
-                      </span>
-                      <span className={styles.progressStats}>
-                        {downloads[format.format_id].progress && `${downloads[format.format_id].progress}`}
-                        {downloads[format.format_id].speed && ` • ${downloads[format.format_id].speed}`}
-                      </span>
-                    </div>
-                    <div className={styles.progressBarWrapper}>
-                      <div
-                        className={styles.progressBar}
-                        style={{ width: downloads[format.format_id].progress ? downloads[format.format_id].progress : '0%' }}
-                      />
-                    </div>
-                    {downloads[format.format_id].error && (
-                      <p className={styles.progressError}>{downloads[format.format_id].error}</p>
-                    )}
-                    <button
-                      className={`btn btn-secondary ${styles.cancelBtn}`}
-                      onClick={() => cancelDownload(format.format_id)}
+                {downloads[format.format_id] ? (
+                  downloads[format.format_id].status === 'done' && downloads[format.format_id].file_url ? (
+                    <a
+                      href={`${API_BASE_URL}${downloads[format.format_id].file_url}&api_key=${getSessionId()}`}
+                      className={`btn btn-primary ${styles.downloadBtn}`}
+                      style={{ backgroundColor: '#10b981' }}
+                      download
                     >
-                      Hủy
-                    </button>
-                  </div>
+                      Lưu File
+                    </a>
+                  ) : (
+                    <div className={styles.downloadProgressContainer}>
+                      <div className={styles.progressInfo}>
+                        <span className={downloads[format.format_id].status === 'queued' ? styles.queueLabel : styles.progressLabel}>
+                          {downloads[format.format_id].status === 'queued'
+                            ? `Đang chờ đến lượt (Vị trí: ${downloads[format.format_id].queue_position || '...'})`
+                            : (downloads[format.format_id].label || 'Đang kết nối...')}
+                        </span>
+                        <span className={styles.progressStats}>
+                          {downloads[format.format_id].progress && `${downloads[format.format_id].progress}`}
+                          {downloads[format.format_id].speed && ` • ${downloads[format.format_id].speed}`}
+                        </span>
+                      </div>
+                      <div className={styles.progressBarWrapper}>
+                        <div
+                          className={`${styles.progressBar} ${downloads[format.format_id].status === 'queued' ? styles.progressQueued : ''}`}
+                          style={{ width: downloads[format.format_id].status === 'queued' ? '100%' : (downloads[format.format_id].progress || '0%') }}
+                        />
+                      </div>
+                      {downloads[format.format_id].error && (
+                        <p className={styles.progressError}>{downloads[format.format_id].error}</p>
+                      )}
+                      <button
+                        className={`btn btn-secondary ${styles.cancelBtn}`}
+                        onClick={() => cancelDownload(format.format_id)}
+                      >
+                        Hủy
+                      </button>
+                    </div>
+                  )
                 ) : (
                   <button
                     className={`btn btn-primary ${styles.downloadBtn}`}

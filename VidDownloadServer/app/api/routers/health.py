@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends
 from app.core.config import settings
 from app.core.security import authenticate_api_key, check_rate_limit
 from app.services.download_jobs import active_downloads, download_queue, worker_tasks
-from app.services.job_store import job_store
 from app.services.storage import ensure_jobs_root, jobs_root, storage_usage_bytes
 
 
@@ -55,7 +54,6 @@ def health_check():
 def ready_check():
     return {
         "status": "ready",
-        "database": os.path.exists(settings.DATABASE_PATH),
         "storage_usage_bytes": storage_usage_bytes(),
         "storage_limit_bytes": settings.STORAGE_MAX_BYTES,
         "workers": len(worker_tasks),
@@ -69,5 +67,4 @@ def metrics(api_key: str = Depends(authenticate_api_key)):
         "active_downloads": len(active_downloads),
         "queue_size": download_queue.qsize(),
         "storage_usage_bytes": storage_usage_bytes(),
-        **job_store.metrics(),
     }

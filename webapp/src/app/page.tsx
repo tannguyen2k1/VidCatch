@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import styles from "./page.module.css";
 import UrlInput from "./components/UrlInput";
 import VideoResult from "./components/VideoResult";
 import ExtensionPromo from "./components/ExtensionPromo";
-import DownloadManager from "./components/DownloadManager";
+
+import { getSessionId } from "./contexts/DownloadContext";
 import { API_BASE_URL } from "./config";
 
 export default function Home() {
@@ -15,6 +16,8 @@ export default function Home() {
   const [currentUrl, setCurrentUrl] = useState<string>('');
 
   const [showDonate, setShowDonate] = useState(false);
+
+
 
   const handleExtract = async (url: string) => {
     setIsLoading(true);
@@ -27,7 +30,7 @@ export default function Home() {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
-          'x-api-key': 'dev-local-key' // fallback for local dev
+          'x-api-key': getSessionId()
         },
         cache: 'no-store'
       });
@@ -98,7 +101,7 @@ export default function Home() {
         </div>
       )}
 
-      <DownloadManager />
+
     </main>
   );
 }

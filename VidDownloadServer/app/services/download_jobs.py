@@ -10,7 +10,6 @@ from fastapi.concurrency import run_in_threadpool
 
 from app.core.config import settings
 from app.services.extractor import DownloadCancelled, YtDlpExtractor
-from app.services.job_store import job_store
 from app.services.storage import cleanup_path, ensure_jobs_root, jobs_root, storage_usage_bytes
 
 
@@ -23,15 +22,12 @@ worker_tasks: list[asyncio.Task] = []
 
 
 def enforce_quota(api_key: str):
-    since = time.time() - 24 * 60 * 60
-    if job_store.count_jobs_for_key_since(api_key, since) >= settings.DAILY_JOB_QUOTA:
-        raise HTTPException(status_code=429, detail="Daily job quota exceeded")
-
-    if job_store.count_active_jobs_for_key(api_key) >= settings.MAX_ACTIVE_JOBS_PER_KEY:
+    active_for_key = sum(1 for job in active_downloads.values() if job.get("api_key") == api_key)
+    if active_for_key >= settings.MAX_ACTIVE_JOBS_PER_KEY:
         raise HTTPException(status_code=429, detail="Too many active jobs for this API key")
 
-    if len(active_downloads) >= settings.MAX_GLOBAL_ACTIVE_JOBS:
-        raise HTTPException(status_code=503, detail="Server is busy")
+    if len(active_downloads) >= settings.MAX_GLOBAL_ACTIVE_JOBS + settings.JOB_QUEUE_SIZE:
+        raise HTTPException(status_code=503, detail="Server queue is full")
 
     if storage_usage_bytes() >= settings.STORAGE_MAX_BYTES:
         raise HTTPException(status_code=507, detail="Temporary storage quota exceeded")
@@ -85,13 +81,11 @@ async def run_download_job(job: dict):
             active_downloads[job_id]["speed"] = d.get("_speed_str", "0B/s").strip()
             active_downloads[job_id]["eta"] = d.get("_eta_str", "Unknown").strip()
         elif d["status"] == "finished":
-            job_store.update_job(job_id, "muxing")
             active_downloads[job_id]["state"] = "muxing"
             active_downloads[job_id]["progress"] = "100%"
             active_downloads[job_id]["label"] = "Merging..."
 
     try:
-        job_store.update_job(job_id, "downloading")
         if job_id in active_downloads:
             active_downloads[job_id]["state"] = "downloading"
 
@@ -121,21 +115,15 @@ async def run_download_job(job: dict):
 
         filename = os.path.basename(file_path)
         token = uuid.uuid4().hex
-        expires_at = job_store.add_download_token(token, job_id, file_path, filename, job_dir)
+        created_at = time.time()
+        expires_at = created_at + settings.DOWNLOAD_TOKEN_TTL_SECONDS
+        
         completed_downloads[token] = {
             "path": file_path,
             "filename": filename,
             "job_dir": job_dir,
-            "created_at": time.time(),
+            "created_at": created_at,
         }
-        job_store.update_job(
-            job_id,
-            "done",
-            filename=filename,
-            file_path=file_path,
-            bytes=file_size,
-            expires_at=expires_at,
-        )
         if job_id in active_downloads:
             active_downloads[job_id]["state"] = "done"
             active_downloads[job_id]["done_payload"] = {
@@ -149,10 +137,9 @@ async def run_download_job(job: dict):
                 active_downloads.pop(job_id, None)
             asyncio.create_task(cleanup_active())
     except DownloadCancelled:
-        job_store.update_job(job_id, "cancelled", error="Download Cancelled")
         cleanup_path(job_dir)
         if job_id in active_downloads:
-            active_downloads[job_id]["state"] = "error"
+            active_downloads[job_id]["state"] = "cancelled"
             active_downloads[job_id]["error"] = "Download Cancelled"
             async def cleanup_error():
                 await asyncio.sleep(10)
@@ -160,7 +147,6 @@ async def run_download_job(job: dict):
             asyncio.create_task(cleanup_error())
     except Exception as exc:
         detail = getattr(exc, "detail", str(exc))
-        job_store.update_job(job_id, "failed", error=str(detail))
         cleanup_path(job_dir)
         logger.exception("download_job_failed", extra={"job_id": job_id})
         if job_id in active_downloads:

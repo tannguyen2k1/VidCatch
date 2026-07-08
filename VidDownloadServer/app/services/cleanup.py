@@ -3,7 +3,6 @@ import os
 import time
 
 from app.core.config import settings
-from app.services.job_store import job_store
 from app.services.storage import cleanup_path, ensure_jobs_root, jobs_root
 
 
@@ -13,10 +12,6 @@ def cleanup_expired_completed_downloads(now: float = None) -> int:
     now = now or time.time()
     removed = 0
 
-    for download in job_store.cleanup_expired_tokens():
-        completed_downloads.pop(download["token"], None)
-        cleanup_path(download["job_dir"])
-        removed += 1
 
     for token, download in list(completed_downloads.items()):
         created_at = download.get("created_at", now)
@@ -40,7 +35,6 @@ def cleanup_stale_job_dirs(now: float = None, remove_all_orphans: bool = False) 
         os.path.abspath(download["job_dir"])
         for download in list(active_downloads.values()) + list(completed_downloads.values())
     }
-    protected_dirs.update(os.path.abspath(path) for path in job_store.active_token_job_dirs())
 
     removed = 0
     for entry in os.scandir(jobs_root):

@@ -21,7 +21,6 @@ from app.services.download_jobs import (
     websocket_error,
 )
 from app.services.extractor import sanitize_filename
-from app.services.job_store import job_store
 from app.services.storage import jobs_root, cleanup_path
 from app.services.connection_manager import manager
 from app.models.schemas import JobStartRequest
@@ -35,7 +34,7 @@ def download_static_file(
     api_key: str = Depends(authenticate_api_key)
 ):
     check_rate_limit(api_key)
-    download = completed_downloads.pop(token, None) or job_store.consume_download_token(token)
+    download = completed_downloads.pop(token, None)
     if not download:
         raise HTTPException(status_code=404, detail="Download token not found or expired")
 
@@ -100,8 +99,6 @@ async def start_job(request: JobStartRequest, api_key: str = Depends(authenticat
     if job_id in active_downloads:
         active_downloads[job_id]["url"] = request.url
         active_downloads[job_id]["format_id"] = request.format_id
-        
-    job_store.create_job(job_id, api_key, request.url, job_dir)
 
     try:
         await enqueue_download_job({
@@ -115,7 +112,6 @@ async def start_job(request: JobStartRequest, api_key: str = Depends(authenticat
         })
     except asyncio.QueueFull:
         active_downloads.pop(job_id, None)
-        job_store.update_job(job_id, "failed", error="Download queue is full")
         raise HTTPException(status_code=503, detail="Download queue is full")
 
     return {"job_id": job_id, "state": "queued"}
@@ -144,8 +140,10 @@ async def sync_websocket(websocket: WebSocket):
     try:
         while True:
             jobs_to_send = {}
+            queued_jobs = [j for j, job_data in active_downloads.items() if job_data.get("state") == "queued"]
             for jid, job in list(active_downloads.items()):
                 if job["api_key"] == api_key:
+                    q_pos = queued_jobs.index(jid) + 1 if job["state"] == "queued" and jid in queued_jobs else None
                     jobs_to_send[jid] = {
                         "job_id": jid,
                         "url": job.get("url", ""),
@@ -158,7 +156,8 @@ async def sync_websocket(websocket: WebSocket):
                         "eta": job["eta"],
                         "label": job["label"],
                         "error": job.get("error"),
-                        "file_url": job.get("done_payload", {}).get("file_url") if job.get("done_payload") else None
+                        "file_url": job.get("done_payload", {}).get("file_url") if job.get("done_payload") else None,
+                        "queue_position": q_pos,
                     }
                     
             await websocket.send_json({"type": "sync", "jobs": jobs_to_send})

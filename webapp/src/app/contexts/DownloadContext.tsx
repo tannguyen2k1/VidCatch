@@ -6,14 +6,13 @@ import { API_BASE_URL, WS_BASE_URL } from '../config';
 
 export type JobState = 'queued' | 'downloading' | 'muxing' | 'done' | 'error' | 'cancelled';
 
+let memorySessionId = '';
 export const getSessionId = () => {
   if (typeof window === 'undefined') return 'dev-local-key';
-  let sid = localStorage.getItem('vidcatch_session_id');
-  if (!sid) {
-    sid = 'session_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-    localStorage.setItem('vidcatch_session_id', sid);
+  if (!memorySessionId) {
+    memorySessionId = 'session_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
   }
-  return sid;
+  return memorySessionId;
 };
 
 export interface DownloadJob {
@@ -30,11 +29,12 @@ export interface DownloadJob {
   file_url?: string;
   filename?: string;
   error?: string;
+  queue_position?: number;
 }
 
 interface DownloadContextType {
   jobs: Record<string, DownloadJob>;
-  addJob: (url: string, format_id: string, title: string, thumbnail?: string, referer?: string) => void;
+  addJob: (url: string, format_id: string, title: string, thumbnail?: string, referer?: string) => Promise<string | null>;
   removeJob: (job_id: string) => void;
   cancelJob: (job_id: string) => void;
 }
@@ -72,9 +72,8 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
             for (const jid in data.jobs) {
               const serverJob = data.jobs[jid];
 
-              // Nếu job đã bị remove thủ công từ trước (tồn tại trong removedJobs)
-              // hoặc đã tải xong (tồn tại trong downloadedFiles) thì bỏ qua hoàn toàn.
-              if (removedJobs.current.has(jid) || downloadedFiles.current.has(jid)) {
+              // Nếu job đã bị remove thủ công từ trước (tồn tại trong removedJobs) thì bỏ qua hoàn toàn.
+              if (removedJobs.current.has(jid)) {
                 continue;
               }
 
@@ -87,24 +86,6 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
                 }
                 removedJobs.current.add(jid);
                 continue;
-              }
-
-              // Xử lý khi job hoàn thành
-              if (serverJob.state === 'done' && serverJob.file_url) {
-                if (!downloadedFiles.current.has(jid)) {
-                  downloadedFiles.current.add(jid);
-                  removedJobs.current.add(jid); // Đánh dấu xoá luôn
-
-                  // Tự động tải file
-                  const initiatedJobs = JSON.parse(sessionStorage.getItem('initiatedJobs') || '[]');
-                  if (initiatedJobs.includes(jid)) {
-                    window.location.href = `${API_BASE_URL}${serverJob.file_url}&api_key=${sessionId}`;
-                  }
-
-                  // Xóa thẳng khỏi state, không cho hiển thị nữa (nghiệp vụ: xong là clear)
-                  delete next[jid];
-                  continue;
-                }
               }
 
               // Nếu chưa hoàn thành và chưa bị xoá, cập nhật vào danh sách
@@ -150,10 +131,10 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const addJob = async (url: string, format_id: string, title: string, thumbnail?: string, referer?: string) => {
+  const addJob = async (url: string, format_id: string, title: string, thumbnail?: string, referer?: string): Promise<string | null> => {
     try {
       const sessionId = getSessionId();
-      const response = await fetch(`${API_BASE_URL}/api/start_download`, {
+      const response = await fetch(`${API_BASE_URL}/api/jobs/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -171,20 +152,14 @@ export function DownloadProvider({ children }: { children: React.ReactNode }) {
       if (!response.ok) {
         const errorData = await response.json();
         toast.error(`Không thể bắt đầu: ${errorData.detail || 'Lỗi hệ thống'}`);
-        return;
+        return null;
       }
 
       const responseData = await response.json();
-      if (responseData.job_id) {
-        // Lưu vào sessionStorage để biết tab này là tab khởi tạo tải xuống
-        const initiated = JSON.parse(sessionStorage.getItem('initiatedJobs') || '[]');
-        initiated.push(responseData.job_id);
-        sessionStorage.setItem('initiatedJobs', JSON.stringify(initiated));
-      }
-
-      toast.success('Đã đưa vào danh sách tải xuống');
+      return responseData.job_id || null;
     } catch (error) {
       toast.error('Lỗi kết nối máy chủ');
+      return null;
     }
   };
 
