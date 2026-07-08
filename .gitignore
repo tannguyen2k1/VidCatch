@@ -51,6 +51,14 @@ venv.bak/
 .env
 .env.*
 
+# ...but allow committing env files
+!.env.local
+!**/.env.local
+!vid-download-server/.env
+!.env.production
+!**/.env.example
+!.env.production.example
+
 # Editor directories and files
 .vscode/
 !.vscode/extensions.json
@@ -64,3 +72,6 @@ venv.bak/
 *.exe
 *.dll
 *.o
+.env.production
+vid-download-server/.env
+docker-compose.prod.yml
