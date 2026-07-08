@@ -8,6 +8,7 @@ import ExtensionPromo from "./components/ExtensionPromo";
 
 import { getSessionId } from "./contexts/DownloadContext";
 import { API_BASE_URL } from "./config";
+import { PLATFORM_SUBTITLE } from "./config/marketing";
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
@@ -86,8 +87,7 @@ export default function Home() {
           </h1>
         </div>
         <p className={styles.subtitle}>
-          Tải video yêu thích từ YouTube, TikTok, Facebook và nhiều nền tảng khác.
-          Miễn phí, nhanh chóng và an toàn.
+          {PLATFORM_SUBTITLE}
         </p>
         <UrlInput onSubmit={handleExtract} isLoading={isLoading} />
       </div>

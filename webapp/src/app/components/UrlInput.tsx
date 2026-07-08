@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import styles from './UrlInput.module.css';
+import { PLATFORM_PLACEHOLDER } from '../config/marketing';
 
 interface UrlInputProps {
   onSubmit: (url: string) => void;
@@ -60,7 +61,7 @@ export default function UrlInput({ onSubmit, isLoading }: UrlInputProps) {
           type="text"
           inputMode="url"
           className={styles.input}
-          placeholder="Dán link video vào đây (YouTube, TikTok, v.v.)"
+          placeholder={PLATFORM_PLACEHOLDER}
           value={url}
           onChange={handleChange}
           disabled={isLoading}
