@@ -260,7 +260,9 @@
   margin-bottom: 8px;
   background: linear-gradient(135deg, #f59e0b, #ea580c);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
+  color: transparent;
 }
 
 .modalDesc {
