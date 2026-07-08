@@ -22,6 +22,10 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://vidcatch.io.vn"),
+  alternates: {
+    canonical: "/",
+  },
   title: PLATFORM_META_TITLE,
   description: PLATFORM_META_DESCRIPTION,
   keywords: [

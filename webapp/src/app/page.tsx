@@ -8,7 +8,7 @@ import ExtensionPromo from "./components/ExtensionPromo";
 
 import { getSessionId } from "./contexts/DownloadContext";
 import { API_BASE_URL } from "./config";
-import { PLATFORM_CHIPS } from "./config/marketing";
+import { PLATFORM_CHIPS, PLATFORM_META_TITLE, PLATFORM_META_DESCRIPTION } from "./config/marketing";
 
 export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
@@ -18,7 +18,20 @@ export default function Home() {
 
   const [showDonate, setShowDonate] = useState(false);
 
-
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": PLATFORM_META_TITLE,
+    "description": PLATFORM_META_DESCRIPTION,
+    "url": "https://vidcatch.io.vn",
+    "applicationCategory": "MultimediaApplication",
+    "operatingSystem": "All",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  };
 
   const translateBackendError = (message: string) => {
     const msg = (message || '').toString();
@@ -79,6 +92,10 @@ export default function Home() {
 
   return (
     <main className={styles.main}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <div className={styles.hero}>
         <div className={styles.titleWrapper}>
           <img src="/logo.png" alt="VidCatch Logo" className={styles.heroLogo} />
