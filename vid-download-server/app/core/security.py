@@ -4,6 +4,7 @@ import time
 from collections import defaultdict, deque
 from urllib.parse import urlparse
 
+from typing import Optional
 from fastapi import Header, HTTPException, Query, WebSocket
 
 from app.core.config import settings
@@ -57,7 +58,7 @@ def authenticate_api_key(x_api_key: str = Header(default=""), api_key: str = Que
     return key or "anonymous"
 
 
-async def authenticate_websocket(websocket: WebSocket) -> str | None:
+async def authenticate_websocket(websocket: WebSocket) -> Optional[str]:
     key = websocket.query_params.get("api_key") or websocket.headers.get("x-api-key")
     key = websocket.query_params.get("api_key")
     if not key and "x-api-key" in websocket.headers:

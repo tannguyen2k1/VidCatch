@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+from typing import Optional
 from yt_dlp.networking.impersonate import ImpersonateTarget
 
 
@@ -33,7 +34,7 @@ class Settings:
         for origin in os.getenv("VIDCATCH_CORS_ORIGINS", "http://localhost:3000,http://localhost:5173,http://localhost:8000").split(",")
         if origin.strip()
     ]
-    BACKEND_CORS_ORIGIN_REGEX: str | None = os.getenv("VIDCATCH_CORS_ORIGIN_REGEX", r"chrome-extension://.*")
+    BACKEND_CORS_ORIGIN_REGEX: Optional[str] = os.getenv("VIDCATCH_CORS_ORIGIN_REGEX", r"chrome-extension://.*")
     ALLOW_LOCAL_URLS: bool = os.getenv("VIDCATCH_ALLOW_LOCAL_URLS", "true").lower() == "true"
     RATE_LIMIT_WINDOW_SECONDS: int = int(os.getenv("VIDCATCH_RATE_LIMIT_WINDOW_SECONDS", "60"))
     RATE_LIMIT_REQUESTS: int = int(os.getenv("VIDCATCH_RATE_LIMIT_REQUESTS", "60"))
