@@ -9,9 +9,12 @@ RUN npm ci
 # Copy the rest of the source code
 COPY . .
 
-# Set up environment variables at build-time. Next.js bakes 
-# NEXT_PUBLIC_ variables into the compiled client-side JavaScript.
-
+# NEXT_PUBLIC_* is baked into the client bundle at build time.
+# Pass production URLs via --build-arg when building the image.
+ARG NEXT_PUBLIC_API_URL=http://localhost:8000
+ARG NEXT_PUBLIC_WS_URL=ws://localhost:8000
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
 
 # Build the Next.js application
 RUN npm run build
