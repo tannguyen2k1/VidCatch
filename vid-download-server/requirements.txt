@@ -4,5 +4,5 @@ websockets==14.1
 imageio-ffmpeg==0.6.0
 yt-dlp
 pydantic==2.11.10
-curl_cffi
+curl_cffi==0.5.10
 python-dotenv
