@@ -65,7 +65,7 @@ class Settings:
         'skip_download': True,
         'nocheckcertificate': True,
         'legacyserverconnect': True,
-        'impersonate': ImpersonateTarget.from_str('chrome-131'),
+        'impersonate': ImpersonateTarget.from_str('chrome-110'),
         'noplaylist': True,
         'socket_timeout': YTDLP_SOCKET_TIMEOUT,
         'retries': 10,
