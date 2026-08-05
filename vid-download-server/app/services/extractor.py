@@ -178,6 +178,7 @@ class YtDlpExtractor:
             'no_warnings': True,
             'color': 'no_color',
             'ratelimit': 3 * 1024 * 1024, # 3MB/s
+            'merge_output_format': 'mp4',
         })
         
         def guarded_progress_hook(d):
